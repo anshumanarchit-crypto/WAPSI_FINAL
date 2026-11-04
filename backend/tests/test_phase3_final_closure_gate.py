@@ -71,7 +71,7 @@ from wapsi.recovery.state_machine import RecoveryState, RecoveryStateMachine
 from wapsi.recovery.timeline import RecoveryTimelineStore
 from wapsi.recovery.worker import RecoveryBackgroundWorker
 
-TEST_PG_PORT = 5440
+TEST_PG_PORT = 5442
 TEST_PG_DIR = os.path.join(str(REPO_ROOT), ".tmp_test_pg_gate")
 POSTGRES_BIN_DIR = r"C:\Program Files\PostgreSQL\17\bin"
 TEST_APP_PASSWORD = "test_wapsi_app_secure_password_gate_999"

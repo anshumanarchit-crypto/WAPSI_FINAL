@@ -63,6 +63,11 @@ def sample_math_row():
         "recovered": 1,
         "outcome": "recovered",
         "time_to_recovery_hours": 1.25,
+        "optimal_treatment": "whatsapp_nudge",
+        "oracle_max_uplift": 0.45,
+        "customer_archetype": "persuadable",
+        "potential_outcomes": {"whatsapp_nudge": 1, "no_action": 0},
+        "simulation_probabilities": {"whatsapp_nudge": 0.85, "no_action": 0.40},
         "is_synthetic": True,
         "dataset_version": "v1.0-synthetic",
         "simulation_seed": 42,
@@ -285,3 +290,33 @@ def test_api_synthetic_job_lifecycle(client):
     res_down_csv = client.get(f"/api/v1/synthetic/jobs/{job_id}/download?format=csv")
     assert res_down_csv.status_code == 200
     assert "text/csv" in res_down_csv.headers["content-type"]
+
+
+def test_api_synthetic_datasets_endpoint(client):
+    """Verifies that /api/v1/synthetic/datasets returns manifests and jobs list without NameError."""
+    res = client.get("/api/v1/synthetic/datasets")
+    assert res.status_code == 200
+    data = res.json()
+    assert "manifests" in data
+    assert "jobs" in data
+    assert isinstance(data["jobs"], list)
+
+
+def test_skeleton_potential_outcomes_and_causal_probabilities():
+    """Verifies that skeleton generator includes counterfactual potential outcomes and simulation probabilities."""
+    gen = DeterministicSkeletonGenerator(seed=77, output_dir=".wapsi_data/test_datasets")
+    skel_file, _, _ = gen.generate_skeleton(total_rows=20)
+
+    with open(skel_file, "r", encoding="utf-8") as f:
+        rows = [json.loads(line) for line in f]
+
+    assert len(rows) == 20
+    for r in rows:
+        assert "potential_outcomes" in r
+        assert "simulation_probabilities" in r
+        assert "optimal_treatment" in r
+        assert "customer_archetype" in r
+        assert isinstance(r["potential_outcomes"], dict)
+        assert isinstance(r["simulation_probabilities"], dict)
+        assert "whatsapp_nudge" in r["potential_outcomes"]
+

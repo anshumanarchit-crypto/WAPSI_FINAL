@@ -39,14 +39,14 @@ from scripts.switch_wapsi_runtime_to_app_role import build_app_url, update_env_f
 from scripts.rollback_wapsi_runtime_to_admin import rollback_runtime
 
 
-TEST_PG_PORT = 5440
+TEST_PG_PORT = 5441
 TEST_PG_DIR = os.path.abspath(".tmp_pg_phase31e_test")
 POSTGRES_BIN_DIR = r"C:\Program Files\PostgreSQL\17\bin"
 
 
 @pytest.fixture(scope="module")
 def local_pg_cluster() -> Generator[str, None, None]:
-    """Isolated local PostgreSQL 17 cluster on dedicated port 5440."""
+    """Isolated local PostgreSQL 17 cluster on dedicated port 5441."""
     if not os.path.exists(os.path.join(POSTGRES_BIN_DIR, "postgres.exe")):
         pytest.skip(f"PostgreSQL 17 binaries not found at {POSTGRES_BIN_DIR}")
 
@@ -82,10 +82,17 @@ def local_pg_cluster() -> Generator[str, None, None]:
     )
 
     admin_db_url = f"postgresql://postgres@localhost:{TEST_PG_PORT}/postgres"
-    time.sleep(2.5)
+    conn = None
+    for _ in range(20):
+        try:
+            conn = psycopg2.connect(admin_db_url)
+            break
+        except psycopg2.OperationalError:
+            time.sleep(0.5)
 
     try:
-        conn = psycopg2.connect(admin_db_url)
+        if not conn:
+            conn = psycopg2.connect(admin_db_url)
         conn.autocommit = True
         cur = conn.cursor()
 

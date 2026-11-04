@@ -215,21 +215,21 @@ class LLMProviderRouter:
         for provider in providers_to_try:
             if provider == "groq" and self.settings.has_groq_configured:
                 resp = self._call_groq(messages)
-                if resp.parsed_json or not resp.error:
+                if resp.parsed_json and not resp.error:
                     return resp
-                last_error = resp.error
+                last_error = resp.error or "Failed to parse JSON from Groq"
 
             elif provider == "gemini" and self.settings.has_gemini_configured:
                 resp = self._call_gemini(messages)
-                if resp.parsed_json or not resp.error:
+                if resp.parsed_json and not resp.error:
                     return resp
-                last_error = resp.error
+                last_error = resp.error or "Failed to parse JSON from Gemini"
 
             elif provider == "ollama":
                 resp = self._call_ollama(messages)
-                if resp.parsed_json or not resp.error:
+                if resp.parsed_json and not resp.error:
                     return resp
-                last_error = resp.error
+                last_error = resp.error or "Failed to parse JSON from Ollama"
 
         # If all online providers fail or are unconfigured, use deterministic fallback
         logger.info("External LLM providers unavailable or unconfigured. Employing deterministic fallback narrative.")
@@ -270,6 +270,7 @@ class LLMProviderRouter:
                         model=model,
                         latency_ms=duration,
                         is_fallback=False,
+                        error=None if parsed is not None else "Groq returned invalid JSON",
                     )
                 else:
                     return LLMResponse(
@@ -327,6 +328,7 @@ class LLMProviderRouter:
                         model=model,
                         latency_ms=duration,
                         is_fallback=False,
+                        error=None if parsed is not None else "Gemini returned invalid JSON",
                     )
                 else:
                     return LLMResponse(
@@ -377,6 +379,7 @@ class LLMProviderRouter:
                         model=model,
                         latency_ms=duration,
                         is_fallback=False,
+                        error=None if parsed is not None else "Ollama returned invalid JSON",
                     )
                 else:
                     return LLMResponse(

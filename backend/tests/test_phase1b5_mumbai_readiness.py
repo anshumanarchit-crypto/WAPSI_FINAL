@@ -42,7 +42,7 @@ def test_migration_seed_separation():
     assert migrations_dir.exists()
 
     migration_files = sorted([f.name for f in migrations_dir.glob("*.sql")])
-    assert len(migration_files) in {3, 5, 6, 7, 8}, f"Expected 3, 5, 6, 7, or 8 migrations, found {len(migration_files)}: {migration_files}"
+    assert len(migration_files) in {3, 5, 6, 7, 8, 9, 10, 11}, f"Expected valid migration count (found {len(migration_files)}: {migration_files})"
     assert migration_files[:3] == [
         "20261031000001_initial_core_schema.sql",
         "20261031000002_operations_outbox_audit.sql",

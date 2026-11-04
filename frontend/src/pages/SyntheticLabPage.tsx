@@ -22,6 +22,7 @@ import {
   Check,
   ChevronDown
 } from 'lucide-react';
+import { apiClient } from '../services/api/apiClient';
 
 interface IntegrationService {
   name: string;
@@ -131,9 +132,7 @@ export const SyntheticLabPage: React.FC = () => {
     setIsLoadingHealth(true);
     setHealthError(null);
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/v1/integrations/health');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: IntegrationHealthData = await res.json();
+      const data = await apiClient.getIntegrationsHealth();
       setHealthData(data);
     } catch (err: any) {
       setHealthError(err.message || 'Could not connect to FastAPI gateway.');
@@ -157,12 +156,9 @@ export const SyntheticLabPage: React.FC = () => {
   // Fetch Datasets & Manifests
   const fetchDatasets = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/v1/synthetic/datasets');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.manifests && data.manifests.length > 0) {
-          setManifest(data.manifests[0]);
-        }
+      const data = await apiClient.getSyntheticDatasets();
+      if (data && data.manifests && data.manifests.length > 0) {
+        setManifest(data.manifests[0]);
       }
     } catch (err) {
       // ignore
@@ -174,12 +170,10 @@ export const SyntheticLabPage: React.FC = () => {
     setIsLoadingPreview(true);
     try {
       const targetId = jobId || activeEnrichJobId || activeSkeletonJobId || 'default';
-      const res = await fetch(`http://127.0.0.1:8000/api/v1/synthetic/jobs/${targetId}/preview?limit=30`);
-      if (res.ok) {
-        const data = await res.json();
-        setPreviewRecords(data.records || []);
+      const data = await apiClient.getSyntheticPreview(targetId, 30);
+      if (data && data.records) {
+        setPreviewRecords(data.records);
       } else {
-        // Fallback demo records if server not queried
         loadMockPreview();
       }
     } catch (err) {
@@ -260,9 +254,8 @@ export const SyntheticLabPage: React.FC = () => {
     if (isGeneratingSkeleton && activeSkeletonJobId) {
       timer = setInterval(async () => {
         try {
-          const res = await fetch(`http://127.0.0.1:8000/api/v1/synthetic/jobs/${activeSkeletonJobId}/status`);
-          if (res.ok) {
-            const data: SyntheticJobStatus = await res.json();
+          const data: SyntheticJobStatus = await apiClient.getSyntheticJobStatus(activeSkeletonJobId);
+          if (data) {
             setSkeletonProgress(data.progress_percent);
             if (data.status === 'completed' || data.status === 'failed') {
               setIsGeneratingSkeleton(false);
@@ -284,9 +277,8 @@ export const SyntheticLabPage: React.FC = () => {
     if (isEnriching && activeEnrichJobId) {
       timer = setInterval(async () => {
         try {
-          const res = await fetch(`http://127.0.0.1:8000/api/v1/synthetic/jobs/${activeEnrichJobId}/status`);
-          if (res.ok) {
-            const data: SyntheticJobStatus = await res.json();
+          const data: SyntheticJobStatus = await apiClient.getSyntheticJobStatus(activeEnrichJobId);
+          if (data) {
             setEnrichJobStatus(data);
             if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled') {
               setIsEnriching(false);
@@ -306,13 +298,8 @@ export const SyntheticLabPage: React.FC = () => {
     setIsGeneratingSkeleton(true);
     setSkeletonProgress(5);
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/v1/synthetic/jobs/generate-skeleton', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seed, total_rows: totalRows })
-      });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await apiClient.generateSkeleton(seed, totalRows);
+      if (data && data.job_id) {
         setActiveSkeletonJobId(data.job_id);
       } else {
         setIsGeneratingSkeleton(false);
@@ -326,16 +313,12 @@ export const SyntheticLabPage: React.FC = () => {
   const handleStartEnrichment = async () => {
     setIsEnriching(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/v1/synthetic/jobs/${activeSkeletonJobId || 'default'}/enrich`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sample_rows: enrichmentCount,
-          preferred_provider: selectedProvider
-        })
-      });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await apiClient.enrichNarratives(
+        activeSkeletonJobId || 'default',
+        enrichmentCount,
+        selectedProvider
+      );
+      if (data && data.job_id) {
         setActiveEnrichJobId(data.job_id);
       } else {
         setIsEnriching(false);
@@ -347,7 +330,11 @@ export const SyntheticLabPage: React.FC = () => {
 
   const handleCancelEnrichment = async () => {
     if (activeEnrichJobId) {
-      await fetch(`http://127.0.0.1:8000/api/v1/synthetic/jobs/${activeEnrichJobId}/cancel`, { method: 'POST' });
+      try {
+        await apiClient.cancelSyntheticJob(activeEnrichJobId);
+      } catch (err) {
+        // ignore
+      }
       setIsEnriching(false);
     }
   };
@@ -890,7 +877,7 @@ export const SyntheticLabPage: React.FC = () => {
             </select>
 
             <a
-              href="http://127.0.0.1:8000/api/v1/synthetic/jobs/default/download?format=json"
+              href={`/api/v1/synthetic/jobs/${activeEnrichJobId || activeSkeletonJobId || 'default'}/download?format=json`}
               download
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
             >
@@ -899,7 +886,7 @@ export const SyntheticLabPage: React.FC = () => {
             </a>
 
             <a
-              href="http://127.0.0.1:8000/api/v1/synthetic/jobs/default/download?format=csv"
+              href={`/api/v1/synthetic/jobs/${activeEnrichJobId || activeSkeletonJobId || 'default'}/download?format=csv`}
               download
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
             >

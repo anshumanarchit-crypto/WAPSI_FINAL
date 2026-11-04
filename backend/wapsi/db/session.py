@@ -69,8 +69,8 @@ class DatabaseManager:
 
             # Supabase pooler / production connection optimizations
             engine_kwargs.update({
-                "pool_size": 4,
-                "max_overflow": 2,
+                "pool_size": 10,
+                "max_overflow": 5,
                 "pool_recycle": 300,
             })
 

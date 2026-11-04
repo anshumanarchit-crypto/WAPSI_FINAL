@@ -63,6 +63,11 @@ MATHEMATICAL_IMMUTABLE_FIELDS = [
     "recovered",
     "outcome",
     "time_to_recovery_hours",
+    "optimal_treatment",
+    "oracle_max_uplift",
+    "customer_archetype",
+    "potential_outcomes",
+    "simulation_probabilities",
     "is_synthetic",
     "dataset_version",
     "simulation_seed",
@@ -132,57 +137,80 @@ class DeterministicSkeletonGenerator:
         )
         generator = WapsiDataGenerator(config=config)
 
-        # Generate in memory-efficient chunks if requested or single batch
-        # Note: 10,000 tabular rows in pandas is ~5MB RAM, but we stream line by line to JSONL
-        df_observed, df_ground_truth = generator.generate(n_samples=total_rows)
+        # Generate in memory-efficient bounded chunks (default chunk_size=1000)
+        # Prevents 10,000 tabular records from remaining in RAM simultaneously.
+        remaining = total_rows
+        batch_size = max(10, min(self.chunk_size, 1000))
 
         with open(temp_file, "w", encoding="utf-8") as f:
-            for idx, row in df_observed.iterrows():
-                amt = float(row["amount"])
-                amt_paise = int(round(amt * 100))
-                amt_display = f"₹{amt:,.2f}"
-                rec_val = int(row["recovered"])
-                outcome_str = "recovered" if rec_val == 1 else "failed"
-                fail_code = str(row["decline_reason"])
+            while remaining > 0:
+                current_batch = min(batch_size, remaining)
+                df_observed, df_ground_truth = generator.generate(n_samples=current_batch)
 
-                record: Dict[str, Any] = {
-                    "case_id": str(row["case_id"]),
-                    "merchant_id": str(row["merchant_id"]),
-                    "customer_id": str(row["customer_id"]),
-                    "domain": str(row["domain"]),
-                    "amount": amt,
-                    "amount_paise": amt_paise,
-                    "amount_display": amt_display,
-                    "decline_reason": fail_code,
-                    "failure_code": fail_code,
-                    "attempts_used": int(row["attempts_used"]),
-                    "account_age_days": int(row["account_age_days"]),
-                    "previous_failures": int(row["previous_failures"]),
-                    "previous_recoveries": int(row["previous_recoveries"]),
-                    "prior_recovery_rate": float(row["prior_recovery_rate"]),
-                    "day_of_week": int(row["day_of_week"]),
-                    "hour": int(row["hour"]),
-                    "issuer": str(row["issuer"]),
-                    "bin_bucket": str(row["bin_bucket"]),
-                    "fatigue_score": float(row["fatigue_score"]),
-                    "treatment": str(row["treatment"]),
-                    "recovered": rec_val,
-                    "outcome": outcome_str,
-                    "time_to_recovery_hours": float(row["time_to_recovery_hours"]) if not pd.isna(row["time_to_recovery_hours"]) else None,
-                    "is_synthetic": True,
-                    "dataset_version": "v1.0-synthetic",
-                    "simulation_seed": self.seed,
-                    "generation_timestamp": timestamp_str,
-                    "narrative_status": "skeleton_only",
-                }
+                for idx, row in df_ground_truth.iterrows():
+                    amt = float(row["amount"])
+                    amt_paise = int(round(amt * 100))
+                    amt_display = f"₹{amt:,.2f}"
+                    rec_val = int(row["recovered"])
+                    outcome_str = "recovered" if rec_val == 1 else "failed"
+                    fail_code = str(row["decline_reason"])
 
-                line = json.dumps(record) + "\n"
-                f.write(line)
-                sha256.update(line.encode("utf-8"))
-                rows_written += 1
+                    # Extract potential outcomes and probabilities
+                    treatments_list = ["no_action", "auto_retry", "whatsapp_nudge", "voice_call", "email", "incentive_link"]
+                    pot_outcomes = {
+                        t: int(row[f"y_{t}"]) for t in treatments_list if f"y_{t}" in row
+                    }
+                    sim_probs = {
+                        t: float(row[f"p_{t}"]) for t in treatments_list if f"p_{t}" in row
+                    }
 
-                if progress_callback and rows_written % 1000 == 0:
-                    progress_callback(rows_written, total_rows)
+                    record: Dict[str, Any] = {
+                        "case_id": str(row["case_id"]),
+                        "merchant_id": str(row["merchant_id"]),
+                        "customer_id": str(row["customer_id"]),
+                        "domain": str(row["domain"]),
+                        "amount": amt,
+                        "amount_paise": amt_paise,
+                        "amount_display": amt_display,
+                        "decline_reason": fail_code,
+                        "failure_code": fail_code,
+                        "attempts_used": int(row["attempts_used"]),
+                        "account_age_days": int(row["account_age_days"]),
+                        "previous_failures": int(row["previous_failures"]),
+                        "previous_recoveries": int(row["previous_recoveries"]),
+                        "prior_recovery_rate": float(row["prior_recovery_rate"]),
+                        "day_of_week": int(row["day_of_week"]),
+                        "hour": int(row["hour"]),
+                        "issuer": str(row["issuer"]),
+                        "bin_bucket": str(row["bin_bucket"]),
+                        "fatigue_score": float(row["fatigue_score"]),
+                        "treatment": str(row["treatment"]),
+                        "recovered": rec_val,
+                        "outcome": outcome_str,
+                        "time_to_recovery_hours": float(row["time_to_recovery_hours"]) if not pd.isna(row["time_to_recovery_hours"]) else None,
+                        "optimal_treatment": str(row["optimal_treatment"]) if "optimal_treatment" in row else None,
+                        "oracle_max_uplift": float(row["oracle_max_uplift"]) if "oracle_max_uplift" in row else None,
+                        "customer_archetype": str(row["customer_archetype"]) if "customer_archetype" in row else None,
+                        "potential_outcomes": pot_outcomes,
+                        "simulation_probabilities": sim_probs,
+                        "is_synthetic": True,
+                        "dataset_version": "v1.0-synthetic",
+                        "simulation_seed": self.seed,
+                        "generation_timestamp": timestamp_str,
+                        "narrative_status": "skeleton_only",
+                    }
+
+                    line = json.dumps(record) + "\n"
+                    f.write(line)
+                    sha256.update(line.encode("utf-8"))
+                    rows_written += 1
+
+                    if progress_callback and rows_written % 1000 == 0:
+                        progress_callback(rows_written, total_rows)
+
+                remaining -= current_batch
+                del df_observed
+                del df_ground_truth
 
         # Atomic replacement
         if skeleton_file.exists():

@@ -501,18 +501,25 @@ def test_whatsapp_webhook_endpoints_still_operational(client: TestClient, monkey
     res_get = client.get("/api/v1/webhooks/whatsapp?hub.mode=subscribe&hub.challenge=11559955&hub.verify_token=wrong")
     assert res_get.status_code == 403
 
-    # 2. POST Delivery event (unsigned test mode)
-    monkeypatch.setattr(get_settings(), "meta_app_secret", None)
+    # 2. POST Delivery event (signed with configured meta_app_secret)
+    import hmac
+    import hashlib
+    from pydantic import SecretStr
+
+    test_secret = "test_meta_webhook_secret_key"
+    monkeypatch.setattr(get_settings(), "meta_app_secret", SecretStr(test_secret))
+    test_waba_id = get_settings().whatsapp_business_account_id or "969727602419694"
+    test_phone_id = get_settings().whatsapp_phone_number_id or "1407090562487899"
     wa_body = {
         "object": "whatsapp_business_account",
         "entry": [
             {
-                "id": "12345",
+                "id": test_waba_id,
                 "changes": [
                     {
                         "value": {
                             "messaging_product": "whatsapp",
-                            "metadata": {"display_phone_number": "123", "phone_number_id": "456"},
+                            "metadata": {"display_phone_number": "123", "phone_number_id": test_phone_id},
                             "statuses": [
                                 {
                                     "id": f"wamid_test_{int(time.time()*1000)}",
@@ -528,6 +535,12 @@ def test_whatsapp_webhook_endpoints_still_operational(client: TestClient, monkey
             }
         ],
     }
-    res_post = client.post("/api/v1/webhooks/whatsapp", json=wa_body)
+    raw_bytes = json.dumps(wa_body).encode("utf-8")
+    sig = hmac.new(test_secret.encode("utf-8"), raw_bytes, hashlib.sha256).hexdigest()
+    res_post = client.post(
+        "/api/v1/webhooks/whatsapp",
+        content=raw_bytes,
+        headers={"Content-Type": "application/json", "X-Hub-Signature-256": f"sha256={sig}"},
+    )
     assert res_post.status_code == 200
     assert res_post.json()["status"] == "received"
