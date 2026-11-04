@@ -10,6 +10,7 @@ import { GovernancePage } from '../../pages/GovernancePage';
 import { SettingsPage } from '../../pages/SettingsPage';
 import { ObservationalLearningPage } from '../../pages/ObservationalLearningPage';
 import { WorkerOperationsPage } from '../../pages/WorkerOperationsPage';
+import { SyntheticLabPage } from '../../pages/SyntheticLabPage';
 
 export const router = createBrowserRouter([
   {
@@ -43,6 +44,10 @@ export const router = createBrowserRouter([
       {
         path: 'worker-operations',
         element: <WorkerOperationsPage />,
+      },
+      {
+        path: 'synthetic-lab',
+        element: <SyntheticLabPage />,
       },
       {
         path: 'analytics',

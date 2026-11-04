@@ -50,6 +50,7 @@ from src.data_generator import (
 )
 from src.inference import WAPSIInferenceEngine, get_default_engine
 from wapsi.api.frontend_adapter import router as frontend_adapter_router
+from wapsi.api.synthetic_router import router as synthetic_router
 from wapsi.api.schemas import (
     ActionExecuteRequest,
     ActionExecuteResponse,
@@ -2267,5 +2268,6 @@ def get_observational_metrics(
     }
 
 
-# --- Mount Frontend Integration Adapter Router ---
+# --- Mount Frontend Integration Adapter Router & Synthetic Lab Router ---
 app.include_router(frontend_adapter_router, prefix="/api/v1")
+app.include_router(synthetic_router, prefix="/api/v1")

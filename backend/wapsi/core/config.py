@@ -85,6 +85,14 @@ class WapsiSettings(BaseSettings):
     supabase_service_role_key: Optional[SecretStr] = Field(default=None, alias="SUPABASE_SERVICE_ROLE_KEY")
     customer_hash_salt: SecretStr = Field(default=SecretStr("wapsi_customer_hash_salt_demo_2026"), alias="CUSTOMER_HASH_SALT")
 
+    # LLM Providers for Synthetic Narrative Generation
+    groq_api_key: Optional[SecretStr] = Field(default=None, alias="GROQ_API_KEY")
+    groq_model: str = Field(default="llama-3.3-70b-versatile", alias="GROQ_MODEL")
+    gemini_api_key: Optional[SecretStr] = Field(default=None, alias="GEMINI_API_KEY")
+    gemini_model: str = Field(default="gemini-2.5-flash", alias="GEMINI_MODEL")
+    ollama_base_url: str = Field(default="http://localhost:11434/v1", alias="OLLAMA_BASE_URL")
+    ollama_model: str = Field(default="llama3", alias="OLLAMA_MODEL")
+
     @model_validator(mode="before")
     @classmethod
     def populate_windows_env_fallbacks(cls, values: dict) -> dict:
@@ -333,6 +341,18 @@ class WapsiSettings(BaseSettings):
         if self.meta_app_secret and self.meta_app_secret.get_secret_value().strip():
             return self.meta_app_secret.get_secret_value().strip().encode("utf-8")
         raise ValueError("META_APP_SECRET is not configured.")
+
+    @property
+    def has_groq_configured(self) -> bool:
+        return bool(self.groq_api_key and self.groq_api_key.get_secret_value().strip())
+
+    @property
+    def has_gemini_configured(self) -> bool:
+        return bool(self.gemini_api_key and self.gemini_api_key.get_secret_value().strip())
+
+    @property
+    def has_ollama_configured(self) -> bool:
+        return bool(self.ollama_base_url and self.ollama_base_url.strip())
 
     @property
     def is_production(self) -> bool:

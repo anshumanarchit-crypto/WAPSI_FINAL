@@ -39,6 +39,7 @@ export const Sidebar: React.FC = () => {
     { name: 'Recovery Cases', path: '/recovery-cases', icon: FileSpreadsheet, tooltip: 'Full audit ledger of all transaction attempts' },
     { name: 'Observational ML', path: '/observational-learning', icon: BrainCircuit, tooltip: 'Gate 5 DML logging, propensity & retraining dataset export' },
     { name: 'Worker Operations', path: '/worker-operations', icon: Building2, tooltip: 'Gate 4 worker daemon health, outbox leases & queues' },
+    { name: 'Synthetic Lab', path: '/synthetic-lab', icon: Sparkles, tooltip: 'Hybrid Monte Carlo 10k skeleton & dual-agent LLM narrative studio' },
     { name: 'Analytics', path: '/analytics', icon: BarChart3, tooltip: 'Causal impact, baseline comparison & simulator' },
     { name: 'Governance', path: '/governance', icon: ShieldCheck, tooltip: 'Policy controls, audit trail & fairness' },
     { name: 'User Management', action: () => setUserManagementModalOpen(true), icon: Users, tooltip: 'Team roles, operator invites & access permissions' },
