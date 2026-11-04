@@ -283,6 +283,30 @@ class PaymentRecoveryOrchestrator:
         self._link_to_case[payment_link_id] = case_id
 
         try:
+            from wapsi.recovery.case_store import get_durable_case_store, RecoveryCaseRecord
+            from wapsi.recovery.state_machine import RecoveryState
+            store = get_durable_case_store()
+            store.save_case(RecoveryCaseRecord(
+                case_id=case_id,
+                payment_id=payment_id,
+                amount_paise=amount_paise_val,
+                customer_phone=customer_phone,
+                customer_name=customer_name,
+                merchant_name=merchant_name,
+                merchant_id=merchant_id or "04a2aaf8-8c8a-4d99-852c-cefc80e82019",
+                error_code="UPI_APP_TIMEOUT",
+                error_category="FRICTION_OTP_UX",
+                status=RecoveryState.DISPATCHED,
+                attempts_made=1,
+                max_attempts=3,
+                payment_link_id=payment_link_id,
+                payment_link_url=payment_link_url,
+                whatsapp_message_id=wa_res.message_id,
+            ))
+        except Exception as store_err:
+            logger.debug(f"Failed to save case to durable case store in orchestrator: {store_err}")
+
+        try:
             from wapsi.recovery.webhook_processor import get_durable_webhook_processor
             processor = get_durable_webhook_processor()
             processor.register_case_mapping(

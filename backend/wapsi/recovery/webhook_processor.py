@@ -377,7 +377,43 @@ class DurableWebhookEventProcessor:
             raw_payload = raw_payload or {}
 
         # Resolve case_id if not explicitly provided
-        resolved_case = case_id or (self._link_to_case.get(payment_link_id) if payment_link_id else None)
+        resolved_case = case_id
+        if not resolved_case and raw_payload and isinstance(raw_payload, dict):
+            payload_dict = raw_payload.get("payload", {}) if isinstance(raw_payload, dict) else {}
+            p_entity = payload_dict.get("payment", {}).get("entity", {}) if isinstance(payload_dict, dict) else {}
+            pl_entity = payload_dict.get("payment_link", {}).get("entity", {}) if isinstance(payload_dict, dict) else {}
+            p_notes = p_entity.get("notes", {}) or {}
+            pl_notes = pl_entity.get("notes", {}) or {}
+            top_notes = raw_payload.get("notes", {}) or {}
+            resolved_case = p_notes.get("case_id") or pl_notes.get("case_id") or top_notes.get("case_id")
+
+        if not resolved_case and payment_link_id:
+            resolved_case = self._link_to_case.get(payment_link_id)
+
+        if not resolved_case:
+            try:
+                from wapsi.recovery.case_store import get_durable_case_store
+                store = get_durable_case_store(self.db_manager)
+                if payment_link_id:
+                    c = store.get_case_by_payment_link_id(payment_link_id)
+                    if c:
+                        resolved_case = c.case_id
+                if not resolved_case and payment_id:
+                    c = store.get_case_by_payment_id(payment_id)
+                    if c:
+                        resolved_case = c.case_id
+            except Exception as store_lookup_err:
+                logger.debug(f"Case store lookup error: {store_lookup_err}")
+
+        if not resolved_case:
+            try:
+                from wapsi.integrations.orchestration.recovery_orchestrator import get_recovery_orchestrator
+                orch = get_recovery_orchestrator()
+                if payment_link_id and payment_link_id in orch._link_to_case:
+                    resolved_case = orch._link_to_case[payment_link_id]
+            except Exception:
+                pass
+
         event_ts = provider_timestamp or time.time()
 
         # Step 1: Durable deduplication check
@@ -407,17 +443,41 @@ class DurableWebhookEventProcessor:
             )
 
         if not resolved_case:
-            self.inbox.mark_processed(inbox_id, "PROCESSED")
+            self.inbox.mark_processed(inbox_id, "UNMATCHED_PENDING_RECONCILIATION", error_message="Webhook cannot be mapped to any known recovery case.")
             return WebhookProcessingResult(
                 event_id=event_id,
                 provider="razorpay",
                 event_type=event_name,
-                status="PROCESSED",
+                status="UNMATCHED_PENDING_RECONCILIATION",
                 case_id=None,
                 resulting_case_status=None,
+                error_message="Webhook cannot be mapped to any known recovery case.",
             )
 
-        current_state = self._case_status.get(resolved_case, RecoveryState.PENDING)
+        current_state = self._case_status.get(resolved_case)
+        if not current_state:
+            try:
+                from wapsi.integrations.orchestration.recovery_orchestrator import get_recovery_orchestrator
+                orch = get_recovery_orchestrator()
+                if resolved_case in orch._cases:
+                    c_st = orch._cases[resolved_case].status
+                    try:
+                        current_state = RecoveryState(c_st)
+                    except ValueError:
+                        current_state = getattr(RecoveryState, c_st.upper(), RecoveryState.PENDING)
+            except Exception:
+                pass
+        if not current_state:
+            try:
+                from wapsi.recovery.case_store import get_durable_case_store
+                store = get_durable_case_store(self.db_manager)
+                rec = store.get_case(resolved_case)
+                if rec:
+                    current_state = rec.status
+            except Exception:
+                pass
+        if not current_state:
+            current_state = RecoveryState.PENDING
 
         try:
             # Step 2: Handle Payment Capture / Payment Link Paid
@@ -430,6 +490,28 @@ class DurableWebhookEventProcessor:
                     is_payment_capture=True,
                 )
                 self._case_status[resolved_case] = new_state
+                try:
+                    from wapsi.recovery.case_store import get_durable_case_store
+                    store = get_durable_case_store(self.db_manager)
+                    store.update_case_status(resolved_case, new_state)
+                except Exception as store_err:
+                    logger.debug(f"Failed to update durable case store on recovery: {store_err}")
+
+                try:
+                    from wapsi.integrations.orchestration.recovery_orchestrator import get_recovery_orchestrator
+                    orch = get_recovery_orchestrator()
+                    if resolved_case in orch._cases:
+                        orch._cases[resolved_case].status = new_state.value
+                except Exception:
+                    pass
+
+                try:
+                    from wapsi.recovery.engine import get_recovery_engine
+                    eng = get_recovery_engine()
+                    if resolved_case in eng._cases:
+                        eng._cases[resolved_case].status = new_state
+                except Exception:
+                    pass
 
                 # Cancel any pending outbox retries immediately
                 cancelled_jobs = self.outbox.cancel_jobs_for_case(resolved_case, reason="PAYMENT_CAPTURED")
@@ -537,6 +619,28 @@ class DurableWebhookEventProcessor:
                     event_trigger=f"RAZORPAY_{event_name.upper().replace('.', '_')}",
                 )
                 self._case_status[resolved_case] = new_state
+                try:
+                    from wapsi.recovery.case_store import get_durable_case_store
+                    store = get_durable_case_store(self.db_manager)
+                    store.update_case_status(resolved_case, new_state)
+                except Exception as store_err:
+                    logger.debug(f"Failed to update durable case store on recovery: {store_err}")
+
+                try:
+                    from wapsi.integrations.orchestration.recovery_orchestrator import get_recovery_orchestrator
+                    orch = get_recovery_orchestrator()
+                    if resolved_case in orch._cases:
+                        orch._cases[resolved_case].status = new_state.value
+                except Exception:
+                    pass
+
+                try:
+                    from wapsi.recovery.engine import get_recovery_engine
+                    eng = get_recovery_engine()
+                    if resolved_case in eng._cases:
+                        eng._cases[resolved_case].status = new_state
+                except Exception:
+                    pass
 
                 self.timeline.record_event(
                     case_id=resolved_case,
@@ -617,6 +721,17 @@ class DurableWebhookEventProcessor:
         resolved_case = self._message_to_case.get(message_id)
         if not resolved_case:
             try:
+                from wapsi.recovery.case_store import get_durable_case_store
+                store = get_durable_case_store(self.db_manager)
+                c = store.get_case_by_whatsapp_message_id(message_id)
+                if c:
+                    resolved_case = c.case_id
+                    self._message_to_case[message_id] = resolved_case
+            except Exception:
+                pass
+
+        if not resolved_case:
+            try:
                 from wapsi.integrations.orchestration.recovery_orchestrator import get_recovery_orchestrator
                 orch = get_recovery_orchestrator()
                 resolved_case = orch._message_to_case.get(message_id)
@@ -659,14 +774,15 @@ class DurableWebhookEventProcessor:
             )
 
         if not resolved_case:
-            self.inbox.mark_processed(inbox_id, "PROCESSED")
+            self.inbox.mark_processed(inbox_id, "UNMATCHED_PENDING_RECONCILIATION", error_message="WhatsApp event cannot be mapped to any known recovery case.")
             return WebhookProcessingResult(
                 event_id=composite_event_id,
                 provider="whatsapp_meta",
                 event_type=f"whatsapp.{status_name}",
-                status="PROCESSED",
+                status="UNMATCHED_PENDING_RECONCILIATION",
                 case_id=None,
                 resulting_case_status=None,
+                error_message="WhatsApp event cannot be mapped to any known recovery case.",
             )
 
         current_state = self._case_status.get(resolved_case, RecoveryState.DISPATCHING)

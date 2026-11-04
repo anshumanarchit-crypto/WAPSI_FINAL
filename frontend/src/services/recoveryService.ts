@@ -103,6 +103,69 @@ export const recoveryService = {
     }
   },
 
+  createPaymentLink: async (caseId: string) => {
+    try {
+      const data = await apiClient.post<{
+        case_id: string;
+        payment_id: string;
+        payment_link_id: string;
+        payment_link_url: string;
+        amount_paise: number;
+        amount_inr: number;
+        status: string;
+        is_reused: boolean;
+      }>(`/recovery/cases/${caseId}/payment-link`);
+      if (data) {
+        const cases = useDemoStore.getState().cases;
+        const updated = cases.map((c) =>
+          c.caseId === caseId
+            ? {
+                ...c,
+                paymentLinkId: data.payment_link_id,
+                paymentLinkUrl: data.payment_link_url,
+              }
+            : c
+        );
+        useDemoStore.setState({ cases: updated });
+      }
+      return data;
+    } catch {
+      return null;
+    }
+  },
+
+  dispatchWhatsApp: async (caseId: string, templateName?: string) => {
+    try {
+      const data = await apiClient.post<{
+        case_id: string;
+        whatsapp_message_id: string;
+        recipient_phone: string;
+        payment_link_url: string;
+        status: string;
+        attempts_made: number;
+      }>(`/recovery/cases/${caseId}/dispatch-whatsapp`, {
+        template_name: templateName,
+      });
+      if (data) {
+        const cases = useDemoStore.getState().cases;
+        const updated = cases.map((c) =>
+          c.caseId === caseId
+            ? {
+                ...c,
+                whatsappMessageId: data.whatsapp_message_id,
+                status: (data.status as any) || c.status,
+                paymentLinkUrl: data.payment_link_url || c.paymentLinkUrl,
+              }
+            : c
+        );
+        useDemoStore.setState({ cases: updated });
+      }
+      return data;
+    } catch {
+      return null;
+    }
+  },
+
   decide: async (eventData: Record<string, any>) => {
     return await apiClient.post<Record<string, any>>('/decide', eventData);
   },

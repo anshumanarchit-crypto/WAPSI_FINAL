@@ -104,6 +104,10 @@ export interface RecoveryCase {
   isOOD: boolean; // Out of distribution / limited evidence
   humanReviewRequired?: RoutingDecision;
   
+  paymentLinkId?: string;
+  paymentLinkUrl?: string;
+  whatsappMessageId?: string;
+
   createdAt: string;
   updatedAt: string;
 }
@@ -237,6 +241,9 @@ export interface DecisionOutput {
     attestationStatus: string;
     timestamp: string;
   };
+  paymentLinkId?: string;
+  paymentLinkUrl?: string;
+  whatsappMessageId?: string;
 }
 
 export interface ModelHealth {

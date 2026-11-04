@@ -26,7 +26,7 @@ import { apiClient } from '../services/api/apiClient';
 
 interface IntegrationService {
   name: string;
-  status: 'connected' | 'authentication_failed' | 'temporarily_unavailable' | 'not_configured';
+  status: 'connected' | 'authentication_failed' | 'temporarily_unavailable' | 'not_configured' | 'rate_limited';
   mode?: string;
   version?: string;
   port?: number;

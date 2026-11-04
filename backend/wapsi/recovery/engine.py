@@ -23,6 +23,7 @@ from typing import Any, Dict, List, Optional, Set, Union
 from wapsi.integrations.orchestration.recovery_orchestrator import parse_monetary_amount
 from wapsi.integrations.razorpay.client import RazorpayClient
 from wapsi.integrations.whatsapp.client import WhatsAppClient
+from wapsi.recovery.case_store import DurableRecoveryCaseStore, RecoveryCaseRecord, get_durable_case_store
 from wapsi.recovery.eligibility import (
     EligibilityEvaluationContext,
     EligibilityStatus,
@@ -63,6 +64,11 @@ class RecoveryCaseRecord:
     payment_link_id: Optional[str] = None
     payment_link_url: Optional[str] = None
     whatsapp_message_id: Optional[str] = None
+    customer_handle: Optional[str] = None
+    domain: Optional[str] = "CHECKOUT"
+    issuer: Optional[str] = "HDFC"
+    recommended_action: Optional[str] = "WHATSAPP"
+    decision_metadata: Dict[str, Any] = field(default_factory=dict)
     created_at_utc: float = field(default_factory=time.time)
     updated_at_utc: float = field(default_factory=time.time)
 
@@ -137,7 +143,22 @@ class PaymentRecoveryEngine:
             razorpay_client=self.rzp,
             whatsapp_client=self.wa,
         )
+        self.case_store = get_durable_case_store(database_manager=database_manager)
         self._cases: Dict[str, RecoveryCaseRecord] = {}
+        # Preload persisted cases from durable case store
+        try:
+            stored_cases, _ = self.case_store.list_cases(limit=1000)
+            for c in stored_cases:
+                self._cases[c.case_id] = c
+                self.webhook_processor.register_case_mapping(
+                    case_id=c.case_id,
+                    initial_status=c.status,
+                    payment_link_id=c.payment_link_id,
+                    whatsapp_message_id=c.whatsapp_message_id,
+                    customer_phone=c.customer_phone,
+                )
+        except Exception as preload_err:
+            logger.debug(f"Could not preload cases from durable case store: {preload_err}")
 
     def create_case(
         self,
@@ -171,6 +192,7 @@ class PaymentRecoveryEngine:
             max_attempts=max_attempts,
         )
         self._cases[case_id] = record
+        self.case_store.save_case(record)
 
         # Register mapping for webhooks
         self.webhook_processor.register_case_mapping(
@@ -255,6 +277,7 @@ class PaymentRecoveryEngine:
             event_trigger="RECOVERY_SCHEDULED",
         )
         case.updated_at_utc = time.time()
+        self.case_store.save_case(case)
 
         # 3. Enqueue to Durable Outbox
         idemp_key = f"rec_{case_id}_{scheduled_action.attempt_number}"
@@ -320,6 +343,7 @@ class PaymentRecoveryEngine:
                 elif res.status == "SUPPRESSED":
                     case.status = RecoveryState.SUPPRESSED_OPT_OUT
                 case.updated_at_utc = time.time()
+                self.case_store.save_case(case)
 
                 # Register mappings for webhook lookups
                 self.webhook_processor.register_case_mapping(
@@ -348,6 +372,7 @@ class PaymentRecoveryEngine:
         # Update case record
         case.status = RecoveryState(report.resulting_state)
         case.updated_at_utc = time.time()
+        self.case_store.save_case(case)
         return report
 
     def cancel_case(self, case_id: str, reason: str = "MANUAL_CANCEL") -> bool:
@@ -368,6 +393,7 @@ class PaymentRecoveryEngine:
             event_trigger=f"CANCEL_{reason}",
         )
         case.updated_at_utc = time.time()
+        self.case_store.save_case(case)
 
         cancelled_jobs = self.outbox.cancel_jobs_for_case(case_id, reason=reason)
 
@@ -383,7 +409,12 @@ class PaymentRecoveryEngine:
         return True
 
     def get_case(self, case_id: str) -> Optional[RecoveryCaseRecord]:
-        return self._cases.get(case_id)
+        if case_id in self._cases:
+            return self._cases[case_id]
+        stored = self.case_store.get_case(case_id)
+        if stored:
+            self._cases[case_id] = stored
+        return stored
 
     def get_outbox_job(self, job_id: str, merchant_id: Optional[str] = None) -> Optional[OutboxJob]:
         """Retrieves an outbox job by ID with optional tenant scope."""

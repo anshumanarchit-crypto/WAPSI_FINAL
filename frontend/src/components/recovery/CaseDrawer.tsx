@@ -20,10 +20,13 @@ import {
   ArrowUpRight,
   ExternalLink,
   ChevronRight,
-  UserCheck
+  UserCheck,
+  Link as LinkIcon,
+  Send
 } from 'lucide-react';
 import { useDemoStore } from '../../store/demoStore';
 import { useCaseDetail } from '../../hooks/useRecovery';
+import { recoveryService } from '../../services/recoveryService';
 import { Button } from '../ui/Button';
 import { StatusBadge } from '../shared/StatusBadge';
 import { formatINR, formatPercent } from '../../lib/formatting';
@@ -51,6 +54,10 @@ export const CaseDrawer: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [selectedActionPreview, setSelectedActionPreview] = useState<string | null>(null);
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [isDispatchingWa, setIsDispatchingWa] = useState(false);
+  const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Unconditional hook call according to React Rules of Hooks
   const { data: liveDetail } = useCaseDetail(isCaseDrawerOpen && selectedCaseId ? selectedCaseId : null);
@@ -64,6 +71,40 @@ export const CaseDrawer: React.FC = () => {
     navigator.clipboard.writeText(currentCase.caseId);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyLink = (url: string) => {
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const handleGenerateLink = async () => {
+    setIsGeneratingLink(true);
+    setActionSuccessMessage(null);
+    try {
+      const res = await recoveryService.createPaymentLink(currentCase.caseId);
+      if (res) {
+        setActionSuccessMessage(`Payment Link generated: ${res.payment_link_id}`);
+        setTimeout(() => setActionSuccessMessage(null), 4000);
+      }
+    } finally {
+      setIsGeneratingLink(false);
+    }
+  };
+
+  const handleDispatchWhatsApp = async () => {
+    setIsDispatchingWa(true);
+    setActionSuccessMessage(null);
+    try {
+      const res = await recoveryService.dispatchWhatsApp(currentCase.caseId);
+      if (res) {
+        setActionSuccessMessage(`WhatsApp reminder dispatched: ${res.whatsapp_message_id}`);
+        setTimeout(() => setActionSuccessMessage(null), 4000);
+      }
+    } finally {
+      setIsDispatchingWa(false);
+    }
   };
 
   const isLight = theme === 'light';
@@ -503,6 +544,112 @@ export const CaseDrawer: React.FC = () => {
                 );
               })}
             </div>
+          </div>
+
+          {/* Autonomous Payment Link & WhatsApp Dispatch */}
+          <div className={cn(
+            "p-4 rounded-2xl border space-y-3 shadow-md",
+            isLight ? "bg-white border-slate-200 text-slate-900" : "bg-slate-900/80 border-slate-800"
+          )}>
+            <div className="flex items-center justify-between">
+              <span className={cn("font-bold text-xs flex items-center gap-1.5", isLight ? "text-slate-900" : "text-white")}>
+                <Zap className="w-3.5 h-3.5 text-amber-500" />
+                Autonomous Channel Execution
+              </span>
+              <span className={cn(
+                "text-[10px] font-semibold px-2 py-0.5 rounded border",
+                currentCase.paymentLinkId
+                  ? isLight ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-emerald-500/10 text-emerald-300 border-emerald-500/20"
+                  : isLight ? "bg-slate-100 text-slate-600 border-slate-200" : "bg-slate-800 text-slate-400 border-slate-700"
+              )}>
+                {currentCase.paymentLinkId ? "Link Active" : "No Link Yet"}
+              </span>
+            </div>
+
+            {actionSuccessMessage && (
+              <div className="p-2.5 rounded-xl border text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30 flex items-center gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span>{actionSuccessMessage}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-xl cursor-pointer",
+                  isLight
+                    ? "bg-indigo-50/70 border-indigo-200 text-indigo-700 hover:bg-indigo-100"
+                    : "bg-indigo-950/40 border-indigo-500/30 text-indigo-300 hover:bg-indigo-900/40"
+                )}
+                disabled={isGeneratingLink || currentCase.status === 'RECOVERED'}
+                onClick={handleGenerateLink}
+              >
+                {isGeneratingLink ? (
+                  <RotateCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <LinkIcon className="w-3.5 h-3.5" />
+                )}
+                <span>Generate Razorpay Link</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-xl cursor-pointer",
+                  isLight
+                    ? "bg-emerald-50/70 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                    : "bg-emerald-950/40 border-emerald-500/30 text-emerald-300 hover:bg-emerald-900/40"
+                )}
+                disabled={isDispatchingWa || currentCase.status === 'RECOVERED'}
+                onClick={handleDispatchWhatsApp}
+              >
+                {isDispatchingWa ? (
+                  <RotateCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
+                <span>Dispatch WhatsApp</span>
+              </Button>
+            </div>
+
+            {(currentCase.paymentLinkId || currentCase.whatsappMessageId) && (
+              <div className={cn(
+                "p-2.5 rounded-xl border space-y-1.5 text-[11px]",
+                isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
+              )}>
+                {currentCase.paymentLinkId && (
+                  <div className="flex items-center justify-between font-mono text-[10px]">
+                    <span className={isLight ? "text-slate-500" : "text-slate-400"}>Payment Link:</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                        {currentCase.paymentLinkId}
+                      </span>
+                      {currentCase.paymentLinkUrl && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopyLink(currentCase.paymentLinkUrl!)}
+                          className="hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                          title="Copy Link URL"
+                        >
+                          {copiedLink ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3 text-slate-400" />}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {currentCase.whatsappMessageId && (
+                  <div className="flex items-center justify-between font-mono text-[10px]">
+                    <span className={isLight ? "text-slate-500" : "text-slate-400"}>WhatsApp Msg ID:</span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                      {currentCase.whatsappMessageId}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Evidence & Signal Weighting */}
