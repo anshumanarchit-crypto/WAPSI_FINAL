@@ -1293,7 +1293,7 @@ export const SettingsPage: React.FC = () => {
                   </div>
                   <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
                     <span className="text-[10px] text-slate-400 block font-medium">Key ID (Masked)</span>
-                    <span className="font-mono text-slate-200 text-xs">{liveIntegrations?.razorpay?.masked_key_id || 'rzp_test_****bdqI'}</span>
+                    <span className="font-mono text-slate-200 text-xs">{liveIntegrations?.razorpay?.masked_key_id || 'NOT_CONFIGURED'}</span>
                   </div>
                 </div>
 

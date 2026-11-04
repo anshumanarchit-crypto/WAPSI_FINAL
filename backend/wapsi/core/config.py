@@ -9,9 +9,19 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Optional, Set
+from pathlib import Path
+from typing import Optional, Set, Tuple, Type
 from pydantic import Field, SecretStr, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict, PydanticBaseSettingsSource
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+ENV_FILE = PROJECT_ROOT / ".env"
+if not ENV_FILE.exists() and (PROJECT_ROOT.parent / ".env").exists():
+    ENV_FILE = PROJECT_ROOT.parent / ".env"
+if not ENV_FILE.exists():
+    workspace_env = Path("C:/Users/arpit/Desktop/Razorpay/Razorpay/.env")
+    if workspace_env.exists():
+        ENV_FILE = workspace_env
 
 
 def _get_windows_user_env(var_name: str) -> Optional[str]:
@@ -32,12 +42,37 @@ class WapsiSettings(BaseSettings):
     Centralized WAPSI configuration with Pydantic v2 validation and SecretStr redaction.
     """
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(ENV_FILE) if ENV_FILE.exists() else ".env",
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
         populate_by_name=True
     )
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: Type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> Tuple[PydanticBaseSettingsSource, ...]:
+        """
+        Explicitly defines configuration source precedence:
+        - In production/staging deployment environments: process environment variables override .env.
+        - In local development/test environments: explicit root .env values take precedence over ambient
+          process environment variables, preventing stale host/IDE environment variables from corrupting
+          local development.
+        - If WAPSI_PREFER_PROCESS_ENV is explicitly set to '1'/'true', process environment retains priority.
+        """
+        wapsi_env = (os.environ.get("WAPSI_ENV") or "").strip().lower()
+        prefer_process_env = os.environ.get("WAPSI_PREFER_PROCESS_ENV", "").strip().lower() in ("1", "true", "yes")
+        is_deployment = wapsi_env in ("production", "staging")
+
+        if is_deployment or prefer_process_env:
+            return (init_settings, env_settings, dotenv_settings, file_secret_settings)
+        return (init_settings, dotenv_settings, env_settings, file_secret_settings)
 
     # Environment
     wapsi_env: str = Field(default="development", alias="WAPSI_ENV")
@@ -377,10 +412,16 @@ class WapsiSettings(BaseSettings):
 _settings_instance: Optional[WapsiSettings] = None
 
 
-def get_settings() -> WapsiSettings:
+def reset_settings() -> None:
+    """Resets the cached singleton WapsiSettings instance."""
+    global _settings_instance
+    _settings_instance = None
+
+
+def get_settings(reload: bool = False) -> WapsiSettings:
     """Returns the cached singleton WapsiSettings instance."""
     global _settings_instance
-    if _settings_instance is None:
+    if reload or _settings_instance is None:
         _settings_instance = WapsiSettings()
     return _settings_instance
 

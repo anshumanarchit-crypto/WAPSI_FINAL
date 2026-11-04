@@ -143,7 +143,7 @@ export const SyntheticLabPage: React.FC = () => {
         services: {
           fastapi: { name: 'FastAPI Causal Gateway', status: 'connected', version: '1.0.0', port: 8000 },
           supabase: { name: 'Supabase PostgreSQL (ap-south-1)', status: 'connected', dialect: 'postgresql', latency_ms: 412.5 },
-          razorpay: { name: 'Razorpay Payment Gateway', status: 'authentication_failed', mode: 'test', masked_key_id: 'rzp_test_****bdqI' },
+          razorpay: { name: 'Razorpay Payment Gateway', status: 'not_configured', mode: 'test', masked_key_id: 'NOT_CONFIGURED' },
           whatsapp: { name: 'Meta WhatsApp Cloud API', status: 'authentication_failed', phone_number_id: '1407090562487899', template_status: 'external_approval_pending' },
           llm_providers: { name: 'Hybrid AI Narrative Providers', status: 'connected', default_active_pipeline: 'deterministic_fallback' }
         }
@@ -355,6 +355,13 @@ export const SyntheticLabPage: React.FC = () => {
             Auth Failed
           </span>
         );
+      case 'rate_limited':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-950/80 text-amber-400 border border-amber-800/60">
+            <AlertTriangle className="w-3 h-3 text-amber-400" />
+            Rate Limited
+          </span>
+        );
       case 'temporarily_unavailable':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-950/80 text-rose-400 border border-rose-800/60">
@@ -474,20 +481,32 @@ export const SyntheticLabPage: React.FC = () => {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-semibold text-white">Razorpay API</p>
-                <p className="text-[11px] text-slate-400">Mode: Test Mode Gateway</p>
+                <p className="text-[11px] text-slate-400">
+                  Mode: {healthData?.services?.razorpay?.mode ? (healthData.services.razorpay.mode.toLowerCase() === 'test' ? 'Test Mode Gateway' : 'Live Gateway') : 'Test Mode Gateway'}
+                </p>
               </div>
               {renderStatusPill(healthData?.services?.razorpay?.status)}
             </div>
             <div className="text-[11px] text-slate-400 space-y-1 font-mono bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
               <div className="flex justify-between">
                 <span className="text-slate-500">Key ID:</span>
-                <span className="text-slate-200">rzp_test_****bdqI</span>
+                <span className="text-slate-200">{healthData?.services?.razorpay?.masked_key_id || 'NOT_CONFIGURED'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Probe Status:</span>
-                <span className="text-amber-400 font-semibold">HTTP 401 Auth Failed</span>
+                <span className={`font-semibold ${healthData?.services?.razorpay?.status === 'connected' ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {healthData?.services?.razorpay?.status === 'connected'
+                    ? 'HTTP 200 OK'
+                    : healthData?.services?.razorpay?.status === 'authentication_failed'
+                    ? 'HTTP 401 Auth Failed'
+                    : healthData?.services?.razorpay?.status === 'rate_limited'
+                    ? 'HTTP 429 Rate Limited'
+                    : (healthData?.services?.razorpay?.status || 'Unknown')}
+                </span>
               </div>
-              <p className="text-[10px] text-slate-500 truncate">External blocker: Credentials expired on live dashboard</p>
+              <p className="text-[10px] text-slate-500 truncate" title={healthData?.services?.razorpay?.message}>
+                {healthData?.services?.razorpay?.message || 'Ready for autonomous payment link orchestration'}
+              </p>
             </div>
           </div>
 

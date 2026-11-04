@@ -20,6 +20,7 @@ import io
 import json
 import logging
 import os
+import sys
 import time
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -33,7 +34,11 @@ from pydantic import BaseModel, Field
 
 from wapsi.core.config import get_settings
 from wapsi.db.session import DatabaseManager
-from wapsi.integrations.razorpay.client import RazorpayAuthError, RazorpayClient
+from wapsi.integrations.razorpay.client import (
+    RazorpayAuthError,
+    RazorpayRateLimitError,
+    RazorpayClient,
+)
 from wapsi.llm.router import get_llm_router
 from wapsi.simulation.hybrid_synthetic import (
     DeterministicSkeletonGenerator,
@@ -65,7 +70,7 @@ class EnrichmentJobRequest(BaseModel):
 # Integration Health Telemetry
 # ==============================================================================
 @router.get("/integrations/health")
-def get_integrations_health() -> Dict[str, Any]:
+def get_integrations_health(response: Response) -> Dict[str, Any]:
     """
     Performs live verification of all external dependencies and returns exact health statuses:
     - FastAPI
@@ -74,6 +79,11 @@ def get_integrations_health() -> Dict[str, Any]:
     - Meta WhatsApp Cloud API
     - LLM Providers (Groq, Gemini, Ollama, Fallback)
     """
+    if response is not None:
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+
     settings = get_settings()
     llm_router = get_llm_router()
     results: Dict[str, Any] = {
@@ -124,7 +134,7 @@ def get_integrations_health() -> Dict[str, Any]:
             "message": "RAZORPAY_KEY_ID not configured.",
         }
     else:
-        rzp_client = RazorpayClient()
+        rzp_client = RazorpayClient(settings=settings)
         try:
             # Safe read-only probe
             rzp_client._request_sync("GET", "/payment_links", params={"count": 1})
@@ -144,13 +154,21 @@ def get_integrations_health() -> Dict[str, Any]:
                 "affected_variable": "RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET",
                 "message": f"Authentication failed (HTTP {auth_err.status_code}). Key credentials rejected by api.razorpay.com.",
             }
+        except RazorpayRateLimitError as rate_err:
+            results["services"]["razorpay"] = {
+                "name": "Razorpay Payment Gateway",
+                "status": "rate_limited",
+                "mode": settings.razorpay_mode,
+                "masked_key_id": settings.masked_key_id,
+                "message": f"Razorpay API rate limit / quota exceeded (HTTP 429): {rate_err}",
+            }
         except Exception as e:
             results["services"]["razorpay"] = {
                 "name": "Razorpay Payment Gateway",
                 "status": "temporarily_unavailable",
                 "mode": settings.razorpay_mode,
                 "masked_key_id": settings.masked_key_id,
-                "message": f"Network error communicating with Razorpay: {type(e).__name__}",
+                "message": f"Razorpay provider unavailable: {type(e).__name__}",
             }
 
     # 4. Meta WhatsApp Cloud API
@@ -468,4 +486,38 @@ def list_synthetic_datasets() -> Dict[str, Any]:
         "manifests": manifests,
         "jobs": jobs,
         "count": len(manifests),
+    }
+
+
+@router.get("/integrations/diagnostics")
+def get_integrations_diagnostics(response: Response) -> Dict[str, Any]:
+    """
+    Safe configuration diagnostics without secret leakage.
+    Reports process metadata, environment loading source, masked suffixes,
+    and configuration consistency.
+    """
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    settings = get_settings()
+    rzp_client = RazorpayClient()
+    from wapsi.core.config import ENV_FILE, _get_windows_user_env
+
+    env_file_path = str(ENV_FILE.resolve()) if hasattr(ENV_FILE, "resolve") else str(ENV_FILE)
+    env_file_exists = ENV_FILE.exists() if hasattr(ENV_FILE, "exists") else False
+
+    proc_key = os.environ.get("RAZORPAY_KEY_ID")
+    reg_val = _get_windows_user_env("RAZORPAY_KEY_ID")
+
+    return {
+        "python_executable": sys.executable,
+        "process_id": os.getpid(),
+        "working_directory": os.getcwd(),
+        "absolute_env_path_expected": env_file_path,
+        "env_file_exists": env_file_exists,
+        "razorpay_mode": settings.razorpay_mode,
+        "key_id_exists": bool(settings.razorpay_key_id),
+        "masked_key_id": settings.masked_key_id,
+        "key_secret_exists": settings.has_key_secret,
+        "process_level_env_overrides_exist": bool(proc_key),
+        "windows_registry_fallback_active": bool(reg_val),
+        "client_uses_same_settings_instance": rzp_client.key_id == settings.razorpay_key_id,
     }

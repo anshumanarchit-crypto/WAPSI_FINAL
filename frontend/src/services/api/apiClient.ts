@@ -415,7 +415,7 @@ class ApiClient {
 
   // --- Synthetic Data Lab & Integration Health Methods ---
   public async getIntegrationsHealth(): Promise<any> {
-    return this.get('/integrations/health');
+    return this.get('/integrations/health', { _t: Date.now() });
   }
 
   public async generateSkeleton(seed: number = 42, totalRows: number = 10000): Promise<any> {

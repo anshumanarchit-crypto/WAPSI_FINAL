@@ -17,7 +17,7 @@ from typing import Any, Dict, Optional, Union
 
 import httpx
 
-from wapsi.core.config import get_settings
+from wapsi.core.config import get_settings, WapsiSettings
 
 logger = logging.getLogger("wapsi.integrations.razorpay")
 
@@ -74,19 +74,20 @@ class RazorpayClient:
         self,
         key_id: Optional[str] = None,
         key_secret: Optional[str] = None,
+        settings: Optional[WapsiSettings] = None,
         base_url: str = RAZORPAY_API_BASE,
         timeout_seconds: float = 10.0,
         max_retries: int = 3,
         transport: Optional[httpx.BaseTransport] = None,
         async_transport: Optional[httpx.AsyncBaseTransport] = None,
     ):
-        settings = get_settings()
-        self.key_id = key_id if key_id is not None else settings.razorpay_key_id
+        active_settings = settings or get_settings()
+        self.key_id = key_id if key_id is not None else active_settings.razorpay_key_id
         if key_secret is not None:
             self.key_secret = key_secret
         else:
             self.key_secret = (
-                settings.razorpay_key_secret.get_secret_value() if settings.razorpay_key_secret else None
+                active_settings.razorpay_key_secret.get_secret_value() if active_settings.razorpay_key_secret else None
             )
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout_seconds
@@ -96,7 +97,7 @@ class RazorpayClient:
 
         # Validation: Never allow live key IDs in test configurations
         if self.key_id and self.key_id.startswith("rzp_live_"):
-            if settings.razorpay_mode == "test":
+            if active_settings.razorpay_mode == "test":
                 raise RazorpayAuthError(
                     "Safety violation: Live Razorpay Key ID (rzp_live_) detected in test mode configuration. "
                     "Phase 2 requires test mode credentials exclusively."
