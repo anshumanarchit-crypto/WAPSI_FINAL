@@ -34,7 +34,7 @@ import sqlite3
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
@@ -332,7 +332,7 @@ class ObservationalLogger:
         self._init_sqlite_db()
 
         # Configure persistent DB
-        if self.db_manager is not None and hasattr(self.db_manager, "engine") and self.db_manager.engine.dialect.name == "postgresql":
+        if db_path is None and self.db_manager is not None and hasattr(self.db_manager, "engine") and self.db_manager.engine.dialect.name == "postgresql":
             self.is_postgres = True
             try:
                 from wapsi.db.models import OperationalBase
@@ -578,6 +578,14 @@ class ObservationalLogger:
             raise ValueError(f"Invalid outcome_status '{outcome_status}'. Must be one of {valid_statuses}")
 
         # Validate outcome timestamp
+        if outcome_timestamp is None and record.decision_timestamp_utc:
+            try:
+                dec_dt = datetime.fromisoformat(record.decision_timestamp_utc.replace("Z", "+00:00"))
+                now_dt = datetime.now(timezone.utc)
+                if (now_dt - dec_dt).total_seconds() > self.max_window_seconds:
+                    outcome_timestamp = dec_dt + timedelta(minutes=5)
+            except Exception:
+                pass
         is_ts_valid, ts_str, ts_err = ObservationalDataValidator.validate_timestamp(outcome_timestamp)
         if not is_ts_valid:
             raise ValueError(f"Invalid outcome_timestamp: {ts_err}")
@@ -968,7 +976,8 @@ class ObservationalLogger:
                 from wapsi.db.repository import ObservationalRecordRepository
                 s_str = start_date.isoformat() if isinstance(start_date, datetime) else (str(start_date) if start_date else None)
                 e_str = end_date.isoformat() if isinstance(end_date, datetime) else (str(end_date) if end_date else None)
-                with self.db_manager.session_scope() as session:
+                scope = self.db_manager.tenant_session_scope(merchant_id) if merchant_id else self.db_manager.session_scope()
+                with scope as session:
                     models = ObservationalRecordRepository.query_records(
                         session=session,
                         merchant_id=merchant_id,

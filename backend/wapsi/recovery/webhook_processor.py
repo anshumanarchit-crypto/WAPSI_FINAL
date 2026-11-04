@@ -136,10 +136,14 @@ class DurableWebhookInbox:
                     pass
 
             if not m_uuid:
-                try:
-                    m_uuid = uuid.UUID(get_settings().default_merchant_id)
-                except Exception:
-                    m_uuid = uuid.UUID("04a2aaf8-8c8a-4d99-852c-cefc80e82019")
+                from wapsi.core.config import is_dev_fallback_permitted
+                if is_dev_fallback_permitted(get_settings()):
+                    try:
+                        m_uuid = uuid.UUID(get_settings().default_merchant_id)
+                    except Exception:
+                        m_uuid = uuid.UUID("04a2aaf8-8c8a-4d99-852c-cefc80e82019")
+                else:
+                    raise PermissionError("Cannot record webhook event without resolved merchant context in production.")
 
             scope = self.db_manager.tenant_session_scope(m_uuid) if m_uuid else self.db_manager.session_scope()
             with scope as session:
@@ -197,21 +201,28 @@ class DurableWebhookInbox:
             conn.commit()
             return False, inbox_id
 
-    def mark_processed(self, inbox_id: str, status: str = "PROCESSED", error_message: Optional[str] = None) -> None:
+    def mark_processed(self, inbox_id: str, status: str = "PROCESSED", error_message: Optional[str] = None, merchant_id: Optional[str] = None) -> None:
         if self.is_postgres and self.db_manager:
             from sqlalchemy import select
             from wapsi.db.models import WebhookInboxModel
-            from wapsi.core.config import get_settings
+            from wapsi.core.config import get_settings, is_dev_fallback_permitted
             try:
                 entry_uuid = uuid.UUID(str(inbox_id))
             except (ValueError, TypeError):
                 return
             m_uuid = None
-            try:
-                m_uuid = uuid.UUID(get_settings().default_merchant_id)
-            except Exception:
-                m_uuid = uuid.UUID("04a2aaf8-8c8a-4d99-852c-cefc80e82019")
-            with self.db_manager.tenant_session_scope(m_uuid) as session:
+            if merchant_id:
+                try:
+                    m_uuid = uuid.UUID(str(merchant_id))
+                except (ValueError, TypeError):
+                    pass
+            if not m_uuid and is_dev_fallback_permitted(get_settings()):
+                try:
+                    m_uuid = uuid.UUID(get_settings().default_merchant_id)
+                except Exception:
+                    m_uuid = uuid.UUID("04a2aaf8-8c8a-4d99-852c-cefc80e82019")
+            scope = self.db_manager.tenant_session_scope(m_uuid) if m_uuid else self.db_manager.session_scope()
+            with scope as session:
                 entry = session.execute(
                     select(WebhookInboxModel).where(WebhookInboxModel.id == entry_uuid)
                 ).scalar_one_or_none()
@@ -266,7 +277,7 @@ class DurableWebhookEventProcessor:
         self.inbox = inbox or DurableWebhookInbox(database_manager=database_manager)
         self.timeline = timeline_store or get_timeline_store()
         self.outbox = outbox_store or get_outbox_store(database_manager=database_manager)
-        self.opt_out = opt_out_store or get_persistent_opt_out_store(database_manager=database_manager)
+        self._opt_out = opt_out_store
         if observational_logger is None:
             try:
                 from wapsi.recovery.observational_logger import get_observational_logger
@@ -288,6 +299,19 @@ class DurableWebhookEventProcessor:
         self._link_to_case: Dict[str, str] = {}
         self._message_to_case: Dict[str, str] = {}
         self._phone_to_cases: Dict[str, Set[str]] = {}
+
+    @property
+    def opt_out(self) -> PersistentOptOutStore:
+        if self._opt_out is not None:
+            return self._opt_out
+        from wapsi.recovery.opt_out_store import _persistent_opt_out
+        if _persistent_opt_out is not None:
+            return _persistent_opt_out
+        return get_persistent_opt_out_store(database_manager=self.db_manager)
+
+    @opt_out.setter
+    def opt_out(self, value: Optional[PersistentOptOutStore]) -> None:
+        self._opt_out = value
 
     def register_case_mapping(
         self,

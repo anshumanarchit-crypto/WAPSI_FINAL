@@ -94,40 +94,89 @@ class PersistenceService:
         decision_object: Dict[str, Any],
         raw_event: Dict[str, Any],
         merchant_code: Optional[str] = None,
+        authenticated_merchant_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Atomic Transactional Write:
-        1. Ensures merchant exists.
-        2. Creates/fetches pseudonymized customer record.
-        3. Records transaction in integer paise.
-        4. Records immutable causal decision snapshot.
-        5. Enqueues authorized recovery action in transactional recovery_outbox.
-        6. Appends decision block to cryptographic audit ledger.
+        Atomic Transactional Write with Authoritative Tenant Context:
+        1. Validates authenticated merchant context (fails closed in production/staging).
+        2. Rejects any contradictory request body merchant_id (anti-spoofing).
+        3. Executes in transaction-local tenant_session_scope for RLS compliance.
+        4. Creates/fetches pseudonymized customer record.
+        5. Records transaction in integer paise.
+        6. Records immutable causal decision snapshot.
+        7. Enqueues authorized recovery action in transactional recovery_outbox.
+        8. Appends decision block to cryptographic audit ledger.
         """
+        from wapsi.core.config import is_dev_fallback_permitted
+        settings = get_settings()
+
         amount_inr = float(raw_event.get("amount") or raw_event.get("amount_in_inr", 1000.0))
-        amount_paise = int(round(amount_inr * 100)) # Convert to integer paise
+        amount_paise = int(round(amount_inr * 100))  # Convert to integer paise
+
+        body_merchant = str(merchant_code or raw_event.get("merchant_id") or "").strip()
+
+        # Enforce authoritative authenticated merchant context
+        auth_mid_str = str(authenticated_merchant_id).strip() if authenticated_merchant_id else ""
+        if auth_mid_str:
+            target_lookup = auth_mid_str
+        else:
+            # No authenticated merchant context provided: fail closed unless dev fallback explicitly permitted
+            if not is_dev_fallback_permitted(settings):
+                raise PermissionError(
+                    "Security violation: Cannot persist causal decision without verified authenticated merchant context. "
+                    "Fail-closed in production/staging environments."
+                )
+            target_lookup = body_merchant or str(getattr(settings, "default_merchant_id", "04a2aaf8-8c8a-4d99-852c-cefc80e82019"))
 
         target_m_id = None
-        if merchant_code:
+        if target_lookup:
             try:
-                target_m_id = uuid.UUID(str(merchant_code))
-            except (ValueError, TypeError):
-                pass
-        if not target_m_id and raw_event.get("merchant_id"):
-            try:
-                target_m_id = uuid.UUID(str(raw_event.get("merchant_id")))
+                target_m_id = uuid.UUID(str(target_lookup))
             except (ValueError, TypeError):
                 pass
 
         scope = self.db.tenant_session_scope(target_m_id) if target_m_id else self.db.session_scope()
         with scope as session:
-            # 1. Resolve Merchant
-            code = merchant_code or raw_event.get("merchant_id", "MRC_928374")
-            merchant = MerchantRepository.get_by_code(session, code)
+            # 1. Resolve Authoritative Merchant
+            merchant = None
+            if target_m_id:
+                merchant = MerchantRepository.get_by_id(session, target_m_id)
+            if not merchant and target_lookup:
+                merchant = MerchantRepository.get_by_code(session, str(target_lookup))
             if not merchant:
-                merchant = MerchantRepository.get_or_create_default(session)
+                if is_dev_fallback_permitted(settings):
+                    merchant = MerchantRepository.get_or_create_default(session)
+                else:
+                    raise PermissionError(
+                        f"Active merchant '{target_lookup}' not found in registry. Fail closed."
+                    )
+
+            # 2. Anti-spoofing verification: request body merchant MUST NOT contradict authenticated merchant
+            if body_merchant:
+                valid_identifiers = {str(merchant.id), str(merchant.merchant_code)}
+                if is_dev_fallback_permitted(settings):
+                    valid_identifiers.update({"default_merchant", "default", "MRC_928374", "merch_default", "merch_acme", "acme"})
+                if body_merchant not in valid_identifiers:
+                    raise PermissionError(
+                        f"Tenant authorization failure: body merchant_id '{body_merchant}' "
+                        f"contradicts authenticated merchant '{merchant.id}' ({merchant.merchant_code})."
+                    )
+
+            if merchant.status != "ACTIVE":
+                raise PermissionError(
+                    f"Merchant '{merchant.merchant_code}' status is '{merchant.status}'. "
+                    "Cannot persist decision for inactive merchant."
+                )
 
             merchant_id = merchant.id
+
+            # Ensure PostgreSQL tenant context matches resolved merchant
+            if self.db.engine.dialect.name == "postgresql" and (not target_m_id or target_m_id != merchant_id):
+                from sqlalchemy import text
+                session.execute(
+                    text("SELECT set_config('app.current_merchant_id', :merchant_id, true)"),
+                    {"merchant_id": str(merchant_id)},
+                )
 
             # 2. Resolve Customer (Pseudonymized)
             user_id = str(raw_event.get("user_id") or raw_event.get("customer_id") or "usr_anonymous")

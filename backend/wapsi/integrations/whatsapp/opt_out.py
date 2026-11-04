@@ -133,7 +133,11 @@ class OptOutManager:
         if self._sync_persistent:
             try:
                 from wapsi.recovery.opt_out_store import get_persistent_opt_out_store
-                return get_persistent_opt_out_store().get_last_interaction(norm)
+                persistent_ts = get_persistent_opt_out_store().get_last_interaction(norm)
+                if persistent_ts is not None and getattr(self, "_cleared_at", None):
+                    if persistent_ts <= self._cleared_at:
+                        return None
+                return persistent_ts
             except Exception:
                 return None
         return None
@@ -160,6 +164,7 @@ class OptOutManager:
         """Clears local cache (primarily for tests)."""
         self._opted_out_phones.clear()
         self._last_interaction_timestamps.clear()
+        self._cleared_at = time.time()
         if self._sync_persistent:
             try:
                 from wapsi.recovery.opt_out_store import get_persistent_opt_out_store

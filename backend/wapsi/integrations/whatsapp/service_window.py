@@ -184,14 +184,7 @@ def evaluate_customer_service_window(
                 inbound_raw = mgr.get_last_interaction(phone)
         except Exception:
             pass
-        if inbound_raw is None:
-            try:
-                from wapsi.recovery.opt_out_store import get_persistent_opt_out_store
-                p_store = get_persistent_opt_out_store()
-                if hasattr(p_store, "get_last_interaction"):
-                    inbound_raw = p_store.get_last_interaction(phone)
-            except Exception:
-                pass
+
 
     if inbound_raw is None:
         return WindowStatus.UNKNOWN, None, now_utc

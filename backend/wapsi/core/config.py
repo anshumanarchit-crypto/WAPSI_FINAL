@@ -70,6 +70,7 @@ class WapsiSettings(BaseSettings):
     # WAPSI Security
     wapsi_api_key: Optional[SecretStr] = Field(default=None, alias="WAPSI_API_KEY")
     wapsi_api_rate_limit: int = Field(default=120, alias="WAPSI_API_RATE_LIMIT")
+    allow_dev_auth_fallback: bool = Field(default=False, alias="WAPSI_ALLOW_DEV_AUTH_FALLBACK")
 
     # Policy Defaults
     policy_dnd_start_hour: int = Field(default=21, alias="POLICY_DND_START_HOUR")
@@ -272,8 +273,9 @@ class WapsiSettings(BaseSettings):
         keys = set()
         if self.wapsi_api_key and self.wapsi_api_key.get_secret_value().strip():
             keys.add(self.wapsi_api_key.get_secret_value().strip())
-        # In non-production, include standard demo key for backward-compatible test suites
-        if self.wapsi_env.lower() != "production":
+        # In production or staging, demo keys must NEVER be present.
+        # Confined strictly to development and test fixtures.
+        if self.wapsi_env.lower() not in ("production", "staging", "prod"):
             keys.add("rzp_live_wapsi_key_demo")
             keys.add("rzp_test_wapsi_key_2026")
         return keys
@@ -382,3 +384,66 @@ def get_settings() -> WapsiSettings:
         _settings_instance = WapsiSettings()
     return _settings_instance
 
+
+def is_dev_fallback_permitted(settings: Optional[WapsiSettings] = None, request: Optional[Any] = None) -> bool:
+    """
+    Evaluates whether development authentication fallback is permitted.
+    STRICT SECURITY INVARIANTS:
+    1. NEVER permitted if WAPSI_ENV is 'production' or 'staging'.
+    2. Must be explicitly enabled via allow_dev_auth_fallback=True OR WAPSI_TEST_MODE='1'.
+    3. NEVER permitted if exposed via a public tunnel (e.g. ngrok, localtunnel, trycloudflare).
+    4. Does NOT trust Host or Origin headers as proof of locality.
+    5. If request is provided, validates that client host is loopback or testclient.
+    """
+    s = settings or get_settings()
+    env = s.wapsi_env.lower().strip()
+    if env in ("production", "staging", "prod"):
+        return False
+
+    is_explicit = bool(s.allow_dev_auth_fallback) or os.environ.get("WAPSI_TEST_MODE") == "1"
+    if not is_explicit:
+        return False
+
+    tunnel_indicators = ("ngrok", "localtunnel", "trycloudflare", "nip.io", "serveo")
+
+    # If an HTTP request is provided, inspect the incoming request directly
+    if request is not None:
+        headers = getattr(request, "headers", {})
+        # Reject if proxy / tunnel headers are present
+        for h in ("x-forwarded-host", "ngrok-trace-id", "cf-connecting-ip", "x-original-host"):
+            if h in headers:
+                return False
+
+        # Reject if Host header targets a public tunnel
+        host_header = (headers.get("host") or "").lower()
+        if any(ti in host_header for ti in tunnel_indicators):
+            return False
+
+        # Reject if forwarded-for contains external/non-loopback IP
+        xff = headers.get("x-forwarded-for") or ""
+        if xff:
+            ips = [ip.strip() for ip in xff.split(",")]
+            if any(ip not in ("127.0.0.1", "::1", "localhost", "testclient") for ip in ips):
+                return False
+
+        # Validate physical client connection is loopback or testclient
+        client = getattr(request, "client", None)
+        client_host = client.host if client else None
+        if client_host and client_host not in ("127.0.0.1", "::1", "localhost", "testclient"):
+            return False
+
+        return True
+
+    # When request is None (ambient config check without request context), evaluate public_base_url
+    urls_to_check = []
+    if s.public_base_url:
+        urls_to_check.append(str(s.public_base_url).lower())
+    env_url = os.environ.get("WAPSI_PUBLIC_BASE_URL") or os.environ.get("PUBLIC_BASE_URL")
+    if env_url:
+        urls_to_check.append(str(env_url).lower())
+
+    for base_url in urls_to_check:
+        if any(ti in base_url for ti in tunnel_indicators) and "localhost" not in base_url and "127.0.0.1" not in base_url:
+            return False
+
+    return True

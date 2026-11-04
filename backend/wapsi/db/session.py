@@ -122,9 +122,14 @@ class DatabaseManager:
         """
         Context manager for transactional database operations.
         Automatically commits on successful block exit; rolls back on exception.
+        Ensures any previous tenant context is cleared (fails closed).
         """
         session = self.session_factory()
         try:
+            if self.engine.dialect.name == "postgresql":
+                session.execute(
+                    text("SELECT set_config('app.current_merchant_id', '', true)")
+                )
             yield session
             session.commit()
         except Exception:
@@ -140,10 +145,13 @@ class DatabaseManager:
         Under PostgreSQL, sets transaction-local merchant context:
         SELECT set_config('app.current_merchant_id', :merchant_id, true)
         Automatically rolls back on exception and resets context upon transaction close.
+        Fails closed on None, empty, or whitespace merchant IDs.
         """
         session = self.session_factory()
         try:
-            m_id_str = str(merchant_id)
+            m_id_str = str(merchant_id).strip() if merchant_id is not None else ""
+            if m_id_str.lower() in ("none", "null", ""):
+                m_id_str = ""
             if self.engine.dialect.name == "postgresql":
                 session.execute(
                     text("SELECT set_config('app.current_merchant_id', :merchant_id, true)"),

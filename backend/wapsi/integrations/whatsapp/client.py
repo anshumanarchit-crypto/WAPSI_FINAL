@@ -639,6 +639,11 @@ class WhatsAppClient:
                 current_time=current_time,
             )
 
+            if not decision.is_window_open and template_name is None:
+                raise WhatsAppDeliveryError(
+                    "Meta Policy Violation: Customer is outside the 24-hour service window and freeform text messages are prohibited. Fallback requires manual review."
+                )
+
             if decision.requires_manual_review:
                 raise WhatsAppDeliveryError(
                     f"Meta Policy Violation: Customer is outside the 24-hour service window. {decision.reason}"

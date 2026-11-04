@@ -143,6 +143,11 @@ class DurableOutboxStore:
             self._init_sqlite_db()
 
     def _get_sqlite_connection(self) -> sqlite3.Connection:
+        if not getattr(self, "db_path", None):
+            data_dir = Path(os.environ.get("WAPSI_LOCAL_DATA_DIR", ".wapsi_data"))
+            data_dir.mkdir(parents=True, exist_ok=True)
+            self.db_path = str(data_dir / "recovery_outbox.db")
+            self._init_sqlite_db()
         conn = sqlite3.connect(self.db_path, timeout=15.0, isolation_level=None)
         conn.row_factory = sqlite3.Row
         return conn
@@ -199,13 +204,18 @@ class DurableOutboxStore:
 
     def _resolve_merchant_uuid(self, session: Session, merchant_id_raw: str) -> uuid.UUID:
         """Resolves merchant string identifier or code to persistent merchant UUID."""
-        # 1. Resolve standard default merchant aliases to configured default merchant UUID
+        from wapsi.core.config import get_settings, is_dev_fallback_permitted
+        settings = get_settings()
+
+        # 1. Resolve standard default merchant aliases to configured default merchant UUID (dev only)
         if merchant_id_raw in ("default_merchant", "default", None, ""):
-            from wapsi.core.config import get_settings
-            try:
-                return uuid.UUID(get_settings().default_merchant_id)
-            except Exception:
-                pass
+            if is_dev_fallback_permitted(settings):
+                try:
+                    return uuid.UUID(settings.default_merchant_id)
+                except Exception:
+                    pass
+            else:
+                raise PermissionError("Cannot resolve default merchant UUID without explicit merchant context in production.")
 
         from wapsi.db.repository import MerchantRepository
         try:
@@ -218,9 +228,11 @@ class DurableOutboxStore:
         if m:
             return m.id
 
-        # Fallback to default merchant
-        default_m = MerchantRepository.get_or_create_default(session)
-        return default_m.id
+        # Fallback to default merchant only in dev fallback mode
+        if is_dev_fallback_permitted(settings):
+            default_m = MerchantRepository.get_or_create_default(session)
+            return default_m.id
+        raise PermissionError(f"Merchant '{merchant_id_raw}' not found in registry. Fail closed in production.")
 
     def enqueue(
         self,
@@ -849,10 +861,16 @@ class DurableOutboxStore:
         conn = self._get_sqlite_connection()
         try:
             conn.execute("BEGIN IMMEDIATE;")
-            row = conn.execute(
-                "SELECT recipient_masked, channel, message_payload, status FROM recovery_outbox WHERE id = ?",
-                (job_id,),
-            ).fetchone()
+            if merchant_id:
+                row = conn.execute(
+                    "SELECT recipient_masked, channel, message_payload, status FROM recovery_outbox WHERE id = ? AND merchant_id = ?",
+                    (job_id, str(merchant_id)),
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    "SELECT recipient_masked, channel, message_payload, status FROM recovery_outbox WHERE id = ?",
+                    (job_id,),
+                ).fetchone()
             if not row:
                 conn.execute("ROLLBACK;")
                 return False
@@ -931,16 +949,28 @@ class DurableOutboxStore:
         conn = self._get_sqlite_connection()
         try:
             conn.execute("BEGIN IMMEDIATE;")
-            cursor = conn.execute(
-                """
-                UPDATE recovery_outbox
-                SET status = 'REJECTED',
-                    last_error = ?,
-                    updated_at = ?
-                WHERE id = ? AND status = 'PENDING_APPROVAL'
-                """,
-                (f"Rejected by operator {operator_id}: {reason}", now, job_id),
-            )
+            if merchant_id:
+                cursor = conn.execute(
+                    """
+                    UPDATE recovery_outbox
+                    SET status = 'REJECTED',
+                        last_error = ?,
+                        updated_at = ?
+                    WHERE id = ? AND merchant_id = ? AND status = 'PENDING_APPROVAL'
+                    """,
+                    (f"Rejected by operator {operator_id}: {reason}", now, job_id, str(merchant_id)),
+                )
+            else:
+                cursor = conn.execute(
+                    """
+                    UPDATE recovery_outbox
+                    SET status = 'REJECTED',
+                        last_error = ?,
+                        updated_at = ?
+                    WHERE id = ? AND status = 'PENDING_APPROVAL'
+                    """,
+                    (f"Rejected by operator {operator_id}: {reason}", now, job_id),
+                )
             success = cursor.rowcount > 0
             conn.execute("COMMIT;")
             if success:
@@ -1017,7 +1047,13 @@ class DurableOutboxStore:
 
         # SQLite Mode
         with self._get_sqlite_connection() as conn:
-            r = conn.execute("SELECT * FROM recovery_outbox WHERE id = ?", (job_id,)).fetchone()
+            if merchant_id:
+                r = conn.execute(
+                    "SELECT * FROM recovery_outbox WHERE id = ? AND merchant_id = ?",
+                    (job_id, str(merchant_id)),
+                ).fetchone()
+            else:
+                r = conn.execute("SELECT * FROM recovery_outbox WHERE id = ?", (job_id,)).fetchone()
             if not r:
                 return None
             keys = r.keys()

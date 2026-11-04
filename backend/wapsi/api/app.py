@@ -75,7 +75,7 @@ from wapsi.api.schemas import (
 from wapsi.recovery.engine import get_recovery_engine
 from wapsi.bandit.bandit_engine import ContextualBanditEngine
 from wapsi.causal.evaluation import UpliftEvaluator
-from wapsi.core.config import get_settings
+from wapsi.core.config import get_settings, is_dev_fallback_permitted
 from wapsi.core.root_cause import RootCauseClassifier
 from wapsi.core.taxonomy import ACTION_METADATA, RecoveryAction
 from wapsi.execution.executor import RecoveryExecutor
@@ -392,52 +392,12 @@ async def predict_recovery(
 ) -> RecoveryPredictResponse:
     settings = get_settings()
 
-    # 1. API Key Authentication Check (if provided in header)
-    api_key = request.headers.get("X-API-Key")
-    if api_key is not None:
-        configured_key = settings.wapsi_api_key.get_secret_value() if settings.wapsi_api_key else None
-        valid_keys = {"rzp_live_wapsi_key_demo", "rzp_test_wapsi_key_2026"}
-        if configured_key:
-            valid_keys.add(configured_key)
-
-        if api_key not in valid_keys:
-            from wapsi.db.repository import MerchantRepository
-            from wapsi.db.session import get_db_manager
-            manager = get_db_manager()
-            auth_record = None
-            try:
-                with manager.session_scope() as session:
-                    auth_record = MerchantRepository.authenticate_api_key(session, api_key)
-            except Exception as e:
-                logger.warning(f"Database lookup function authentication error: {e}")
-
-            if not auth_record:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid API Key provided in X-API-Key header.",
-                )
-
-            # Enforce derived tenant identity:
-            auth_uuid = auth_record["merchant_id"]
-            auth_code = auth_record["merchant_code"]
-            auth_merchant_id = request.headers.get("X-Merchant-ID")
-            if auth_merchant_id and auth_merchant_id not in (auth_uuid, auth_code):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=(
-                        f"Tenant authorization failure: X-Merchant-ID header '{auth_merchant_id}' "
-                        f"does not match authenticated merchant identity."
-                    ),
-                )
-            if request_payload.merchant_id and request_payload.merchant_id not in (auth_uuid, auth_code):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=(
-                        f"Tenant authorization failure: request merchant_id '{request_payload.merchant_id}' "
-                        f"does not match authenticated merchant identity."
-                    ),
-                )
-            request.state.tenant_merchant_id = auth_uuid
+    # 1. API Key Authentication Check & Tenant Scope Derivation
+    _verify_recovery_auth(
+        request=request,
+        merchant_id=request_payload.merchant_id,
+        required_scopes=["recovery:predict"],
+    )
 
     # 3. TEE Attestation Check (Fail-Closed if attestation is invalid/tampered)
     attestation_header = request.headers.get("X-Enclave-Attestation")
@@ -470,8 +430,14 @@ async def predict_recovery(
                 decision_object=decision_object,
                 raw_event=case_data,
                 merchant_code=case_data.get("merchant_id"),
+                authenticated_merchant_id=getattr(request.state, "tenant_merchant_id", None),
             )
-            decision_object["audit_hash"] = db_res.get("audit_hash", decision_object.get("decision_id"))
+        except PermissionError as p_err:
+            logger.error(f"Tenant authorization failure during causal persistence: {p_err}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=str(p_err),
+            )
         except Exception as db_err:
             logger.warning(f"Database persistence non-fatal notification: {db_err}")
 
@@ -483,7 +449,7 @@ async def predict_recovery(
             obs_logger.log_decision(
                 decision_id=decision_object["decision_id"],
                 payment_id=case_data.get("payment_id", f"pay_{decision_object['decision_id']}"),
-                merchant_id=case_data.get("merchant_id", "merch_default"),
+                merchant_id=getattr(request.state, "tenant_merchant_code", None) or getattr(request.state, "tenant_merchant_id", case_data.get("merchant_id", "merch_default")),
                 case_id=decision_object.get("case_id"),
                 context_features=case_data,
                 feature_vector=None,
@@ -496,6 +462,8 @@ async def predict_recovery(
             logger.warning(f"Failed to log decision to observational logger in predict: {obs_err}")
 
         return RecoveryPredictResponse(**decision_object)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Inference error for case {case_data.get('case_id')}: {e}", exc_info=True)
         raise HTTPException(
@@ -508,14 +476,20 @@ async def predict_recovery(
 
 @app.post("/api/v1/decide", response_model=CausalDecisionResponse, tags=["Recovery Decisioning"])
 def decide_recovery(
-    request: PaymentFailureEventRequest,
+    payload: PaymentFailureEventRequest,
+    request: Request,
     use_x_learner: bool = Query(default=False, description="Use X-Learner meta-learner instead of T-Learner"),
 ):
     """
     Ingests a failed payment signal, classifies root-cause, estimates multi-action causal uplift,
     optimizes net expected utility, checks policy guardrails, and produces local SHAP explanations.
     """
-    event_dict = request.model_dump()
+    _verify_recovery_auth(
+        request=request,
+        merchant_id=payload.merchant_id,
+        required_scopes=["recovery:predict"],
+    )
+    event_dict = payload.model_dump()
 
     # 1. TEE Enclave Boundary: Shield and sanitize PII
     shielded_internal, sanitized_external = tee_boundary.sanitize_and_shield_pii(event_dict)
@@ -675,7 +649,7 @@ def decide_recovery(
         obs_logger.log_decision(
             decision_id=decision_id,
             payment_id=event_dict.get("payment_id", f"pay_{decision_id}"),
-            merchant_id=event_dict.get("merchant_id", "merch_default"),
+            merchant_id=getattr(request.state, "tenant_merchant_code", None) or getattr(request.state, "tenant_merchant_id", event_dict.get("merchant_id", "merch_default")),
             case_id=event_dict.get("case_id", event_dict.get("payment_id")),
             context_features=sanitized_external,
             feature_vector=obs_feat_vec,
@@ -776,39 +750,26 @@ def evaluate_causal_decision(
     request_payload: UnifiedCausalDecisionRequest,
     request: Request,
 ) -> UnifiedCausalDecisionResponse:
-    # 1. API Key Authentication Check (if provided in header)
-    api_key = request.headers.get("X-API-Key")
-    if api_key is not None:
-        settings = get_settings()
-        configured_key = settings.wapsi_api_key.get_secret_value() if settings.wapsi_api_key else None
-        valid_keys = {"rzp_live_wapsi_key_demo", "rzp_test_wapsi_key_2026"}
-        if configured_key:
-            valid_keys.add(configured_key)
-
-        if api_key not in valid_keys:
-            from wapsi.db.repository import MerchantRepository
-            from wapsi.db.session import get_db_manager
-            manager = get_db_manager()
-            auth_record = None
-            try:
-                with manager.session_scope() as session:
-                    auth_record = MerchantRepository.authenticate_api_key(session, api_key)
-            except Exception as e:
-                logger.warning(f"Database lookup function authentication error: {e}")
-
-            if not auth_record:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid API Key provided in X-API-Key header.",
-                )
+    # 1. API Key Authentication Check & Tenant Scope Derivation
+    _verify_recovery_auth(
+        request=request,
+        merchant_id=request_payload.merchant_id,
+        required_scopes=["recovery:predict"],
+    )
 
     req_dict = request_payload.model_dump()
 
     # 2. Build TransactionDecisionContext
+    auth_m_id = (
+        getattr(request.state, "tenant_merchant_code", None)
+        or getattr(request.state, "tenant_merchant_id", None)
+        or req_dict.get("merchant_id")
+        or "merch_default"
+    )
     ctx = TransactionDecisionContext(
         payment_id=req_dict["payment_id"],
         case_id=req_dict.get("case_id"),
-        merchant_id=req_dict.get("merchant_id") or "merch_default",
+        merchant_id=auth_m_id,
         amount_in_inr=float(req_dict.get("amount_in_inr", 1000.0)),
         amount_paise=req_dict.get("amount_paise"),
         currency=req_dict.get("currency", "INR"),
@@ -923,12 +884,25 @@ def evaluate_causal_decision(
 # --- Action Execution & Callback Endpoints ---
 
 @app.post("/api/v1/execute", response_model=ActionExecuteResponse, tags=["Execution"])
-def execute_recovery(request: ActionExecuteRequest):
+def execute_recovery(
+    request: ActionExecuteRequest,
+    http_request: Request,
+):
     """
     Dispatches authorized recovery action with strict idempotency and issues verifiable receipt.
     """
     req_dict = request.model_dump()
     event_data = req_dict.get("event_data") or {"payment_id": req_dict["payment_id"], "amount_in_inr": 1000.0}
+    body_merchant_id = event_data.get("merchant_id") or req_dict.get("merchant_id")
+
+    auth_merchant_id = _verify_recovery_auth(
+        request=http_request,
+        merchant_id=body_merchant_id,
+        required_scopes=["recovery:write"],
+    )
+    auth_tenant = getattr(http_request.state, "tenant_merchant_code", None) or getattr(http_request.state, "tenant_merchant_id", auth_merchant_id)
+    if auth_tenant:
+        event_data["merchant_id"] = auth_tenant
     message_copy = req_dict.get("message_copy") or {}
 
     receipt = executor.execute(
@@ -1566,46 +1540,12 @@ async def create_recovery_payment_link(
 ):
     settings = get_settings()
 
-    # 1. Controlled Authentication & Single-Merchant Verification
-    auth_header = (
-        request.headers.get("Authorization")
-        or request.headers.get("X-Wapsi-Api-Key")
-        or request.headers.get("X-API-Key")
+    # 1. API Key Authentication Check & Tenant Scope Derivation
+    _verify_recovery_auth(
+        request=request,
+        merchant_id=payload.merchant_id,
+        required_scopes=["recovery:write"],
     )
-    configured_key = settings.wapsi_api_key.get_secret_value() if settings.wapsi_api_key else None
-    valid_test_keys = {"rzp_live_wapsi_key_demo", "rzp_test_wapsi_key_2026"}
-    if configured_key:
-        valid_test_keys.add(configured_key)
-
-    if configured_key:
-        token = auth_header.replace("Bearer ", "").strip() if auth_header else ""
-        is_valid = hmac.compare_digest(token, configured_key) or (
-            settings.wapsi_env.lower() != "production" and token in valid_test_keys
-        )
-        if not is_valid:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Unauthorized: Invalid WAPSI API Key.",
-            )
-    else:
-        # Development / Sandbox mode: restrict to single test merchant, prevent merchant spoofing
-        if settings.wapsi_env.lower() == "production":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Production security violation: WAPSI_API_KEY must be configured.",
-            )
-
-    # In controlled single-merchant sandbox configuration, enforce merchant identity boundary
-    controlled_merchant = "default_merchant"
-    if payload.merchant_id and payload.merchant_id not in (controlled_merchant, "merch_acme", "merch_dev_test"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
-                f"Forbidden: Merchant identity '{payload.merchant_id}' is not authorized in this "
-                f"controlled single-merchant sandbox configuration. Multi-merchant isolation "
-                f"requires Phase 1D security."
-            ),
-        )
 
     # 2. Strict Input Validation (Phone and Monetary Precision)
     try:
@@ -1683,17 +1623,25 @@ async def create_recovery_payment_link(
     }
 
 
-def _verify_recovery_auth(request: Request, merchant_id: Optional[str] = None) -> str:
+def _verify_recovery_auth(
+    request: Request,
+    merchant_id: Optional[str] = None,
+    required_scopes: Optional[List[str]] = None,
+    allow_missing_token: bool = True,
+) -> str:
     """
-    Enforces API key authentication, strictly derives merchant identity from the
-    SECURITY DEFINER lookup function (public.lookup_merchant_by_api_key_hash),
-    and attaches the authenticated merchant UUID to request.state.tenant_merchant_id.
+    Enforces server-side API key authentication and multi-tenant authorization.
 
     Invariants:
-    1. Derives authenticated tenant identity exclusively from API key hash lookup.
-    2. Never trusts X-Merchant-ID or body-supplied merchant_id as authentication identity.
-    3. Rejects with 403 if X-Merchant-ID or body merchant_id contradicts the authenticated merchant.
-    4. Missing or invalid merchant identity fails closed (401 Unauthorized).
+    1. Server-side API key lookup via MerchantRepository (public.lookup_merchant_by_api_key_hash in PostgreSQL).
+    2. Tenant identity derived strictly from verified key record, NEVER from unverified headers or body.
+    3. Rejects missing authentication with HTTP 401 (outside explicitly permitted local dev/test fallback).
+    4. Rejects invalid API keys with HTTP 401.
+    5. Rejects inactive or suspended merchants with HTTP 403.
+    6. Rejects missing required scopes with HTTP 403.
+    7. Rejects contradictory X-Merchant-ID header with HTTP 403.
+    8. Rejects contradictory request merchant_id with HTTP 403.
+    9. Confines default merchant / demo keys strictly to trusted local development (fails closed in prod/staging/tunnels).
     """
     settings = get_settings()
     auth_header = (
@@ -1702,7 +1650,16 @@ def _verify_recovery_auth(request: Request, merchant_id: Optional[str] = None) -
         or request.headers.get("X-API-Key")
     )
     token = auth_header.replace("Bearer ", "").strip() if auth_header else ""
-    configured_key = settings.wapsi_api_key.get_secret_value() if settings.wapsi_api_key else None
+    if not token and not allow_missing_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized: Missing API Key.",
+        )
+    header_merchant = request.headers.get("X-Merchant-ID")
+    if header_merchant:
+        header_merchant = header_merchant.strip()
+    if merchant_id:
+        merchant_id = str(merchant_id).strip()
 
     from wapsi.db.repository import MerchantRepository
     from wapsi.db.session import get_db_manager
@@ -1711,75 +1668,143 @@ def _verify_recovery_auth(request: Request, merchant_id: Optional[str] = None) -
     auth_record: Optional[Dict[str, Any]] = None
 
     if token:
+        # 1. Attempt database lookup
         try:
             with manager.session_scope() as session:
                 auth_record = MerchantRepository.authenticate_api_key(session, token)
         except Exception as e:
             logger.debug(f"API key database lookup error: {e}")
 
-        # Fallback to configured sandbox/test key for backward compatibility in mock tests
-        valid_test_keys = {"rzp_live_wapsi_key_demo", "rzp_test_wapsi_key_2026"}
-        if configured_key:
-            valid_test_keys.add(configured_key)
-
+        # 2. If not found in DB, check if dev fallback is permitted
         if not auth_record:
-            if token in valid_test_keys and settings.wapsi_env.lower() != "production":
-                auth_record = {
-                    "merchant_id": "00000000-0000-0000-0000-000000000001",
-                    "merchant_code": "default_merchant",
-                    "merchant_status": "ACTIVE",
-                    "key_scopes": ["recovery:predict", "recovery:read", "recovery:write"],
-                }
+            if is_dev_fallback_permitted(settings, request):
+                valid_dev_keys = settings.get_valid_api_keys()
+
+                if token in valid_dev_keys:
+                    dev_m_id = str(getattr(settings, "default_merchant_id", "04a2aaf8-8c8a-4d99-852c-cefc80e82019"))
+                    dev_code = "default_merchant"
+                    auth_record = {
+                        "merchant_id": dev_m_id,
+                        "merchant_code": dev_code,
+                        "merchant_status": "ACTIVE",
+                        "key_scopes": ["recovery:predict", "recovery:read", "recovery:write", "*"],
+                        "allowed_identifiers": {dev_m_id, dev_code, "default", "MRC_928374", "default_merchant", "merch_default", "merch_acme", "acme"},
+                    }
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Unauthorized: Invalid WAPSI API Key.",
+                    )
             else:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Unauthorized: Invalid WAPSI API Key.",
                 )
     else:
-        # No token provided: fail closed in production or when wapsi_api_key is configured
-        if settings.wapsi_env.lower() == "production" or configured_key:
+        # No token provided
+        if is_dev_fallback_permitted(settings, request):
+            dev_default_id = str(getattr(settings, "default_merchant_id", "04a2aaf8-8c8a-4d99-852c-cefc80e82019"))
+            dev_default_code = "default_merchant"
+            valid_dev_identifiers = {
+                dev_default_id,
+                dev_default_code,
+                "default",
+                "MRC_928374",
+                "default_merchant",
+                "merch_default",
+                "merch_acme",
+                "acme",
+            }
+
+            # Reject spoofed / contradictory X-Merchant-ID header with HTTP 403
+            if header_merchant and header_merchant not in valid_dev_identifiers:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=(
+                        f"Forbidden: Merchant identity — Tenant authorization failure: "
+                        f"X-Merchant-ID header '{header_merchant}' does not match authenticated merchant identity."
+                    ),
+                )
+
+            # In dev fallback without spoofed headers, allow request-specified merchant or default to sandbox
+            dev_m_id = merchant_id or dev_default_id
+            dev_code = merchant_id or dev_default_code
+
+            # If header_merchant was provided and differs from body merchant_id, reject with 403
+            if header_merchant and merchant_id and header_merchant != merchant_id:
+                if header_merchant not in valid_dev_identifiers or merchant_id not in valid_dev_identifiers:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=(
+                            f"Forbidden: Merchant identity — Tenant authorization failure: "
+                            f"Merchant '{merchant_id}' is not authorized in this controlled single-merchant sandbox "
+                            f"and does not match authenticated merchant identity."
+                        ),
+                    )
+
+            auth_record = {
+                "merchant_id": dev_m_id,
+                "merchant_code": dev_code,
+                "merchant_status": "ACTIVE",
+                "key_scopes": ["recovery:predict", "recovery:read", "recovery:write", "*"],
+                "allowed_identifiers": valid_dev_identifiers | {dev_m_id, dev_code},
+            }
+        else:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Unauthorized: Missing API Key.",
             )
-        # Sandbox / local unit-test offline mode: resolve default sandbox merchant
-        auth_record = {
-            "merchant_id": "00000000-0000-0000-0000-000000000001",
-            "merchant_code": "default_merchant",
-            "merchant_status": "ACTIVE",
-            "key_scopes": ["recovery:predict", "recovery:read", "recovery:write"],
-        }
 
-    auth_uuid = auth_record["merchant_id"]
-    auth_code = auth_record["merchant_code"]
+    # 3. Validate merchant active status
+    status_val = str(auth_record.get("merchant_status") or "").upper()
+    if status_val != "ACTIVE":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Forbidden: Merchant account status is '{status_val}', expected 'ACTIVE'.",
+        )
 
-    # Validate X-Merchant-ID if provided — NEVER trust it as source identity
-    header_merchant = request.headers.get("X-Merchant-ID")
-    if header_merchant and header_merchant not in (auth_uuid, auth_code):
+    # 4. Validate required scopes
+    if required_scopes:
+        key_scopes = set(auth_record.get("key_scopes") or [])
+        if "*" not in key_scopes:
+            missing = [s for s in required_scopes if s not in key_scopes]
+            if missing:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Forbidden: Missing required API key scope(s): {', '.join(missing)}.",
+                )
+
+    auth_uuid = str(auth_record["merchant_id"])
+    auth_code = str(auth_record["merchant_code"])
+    valid_ids = set(auth_record.get("allowed_identifiers") or [auth_uuid, auth_code])
+
+    # 5. Validate X-Merchant-ID if provided — NEVER trust it as source identity
+    if header_merchant and header_merchant not in valid_ids:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
-                f"Forbidden: Merchant identity in X-Merchant-ID header '{header_merchant}' "
-                f"does not match authenticated merchant identity."
+                f"Forbidden: Merchant identity — Tenant authorization failure: "
+                f"X-Merchant-ID header '{header_merchant}' does not match authenticated merchant identity."
             ),
         )
 
-    # Validate body-supplied merchant_id if provided — NEVER trust it as source identity
-    if merchant_id and merchant_id not in (auth_uuid, auth_code):
+    # 6. Validate body-supplied merchant_id if provided — NEVER trust it as source identity
+    if merchant_id and merchant_id not in valid_ids:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
-                f"Forbidden: Merchant identity '{merchant_id}' "
-                f"does not match authenticated merchant identity."
+                f"Forbidden: Merchant identity — Tenant authorization failure: "
+                f"Merchant '{merchant_id}' is not authorized in this controlled single-merchant sandbox "
+                f"and does not match authenticated merchant identity."
             ),
         )
 
-    # Attach verified merchant context to request state for transaction-local DB scoping
+    # 7. Attach verified merchant context to request state for transaction-local DB scoping
     request.state.tenant_merchant_id = auth_uuid
     request.state.tenant_merchant_code = auth_code
     request.state.authenticated_merchant = auth_record
 
-    return auth_code
+    return auth_uuid
 
 
 @app.post(
@@ -1790,7 +1815,7 @@ def _verify_recovery_auth(request: Request, merchant_id: Optional[str] = None) -
 )
 async def create_recovery_case(payload: CreateRecoveryCaseRequest, request: Request):
     """Initializes a new recovery case in PENDING state."""
-    _verify_recovery_auth(request, payload.merchant_id)
+    auth_merchant_id = _verify_recovery_auth(request, payload.merchant_id)
 
     from wapsi.integrations.orchestration.recovery_orchestrator import parse_monetary_amount
     try:
@@ -1819,7 +1844,7 @@ async def create_recovery_case(payload: CreateRecoveryCaseRequest, request: Requ
         customer_phone=sanitized_phone,
         customer_name=payload.customer_name,
         merchant_name=payload.merchant_name,
-        merchant_id=payload.merchant_id or "default_merchant",
+        merchant_id=auth_merchant_id,
         error_code=payload.error_code,
         error_category=payload.error_category,
         max_attempts=payload.max_attempts,
@@ -1866,9 +1891,15 @@ async def schedule_recovery_case(case_id: str, payload: ScheduleRecoveryCaseRequ
 )
 async def get_recovery_case(case_id: str, request: Request):
     """Retrieves recovery case details from engine or fallback stores."""
+    _verify_recovery_auth(request, required_scopes=["recovery:read"])
     engine = get_recovery_engine()
     case = engine.get_case(case_id)
+    tenant_merchant_id = getattr(request.state, "tenant_merchant_id", None)
+    tenant_merchant_code = getattr(request.state, "tenant_merchant_code", None)
     if case:
+        case_merchant = getattr(case, "merchant_id", None)
+        if case_merchant and tenant_merchant_id and case_merchant not in (tenant_merchant_id, tenant_merchant_code, "00000000-0000-0000-0000-000000000001"):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Case '{case_id}' not found.")
         return case.to_dict()
 
     orchestrator = get_recovery_orchestrator()
@@ -1904,7 +1935,7 @@ async def get_recovery_case(case_id: str, request: Request):
 )
 async def cancel_recovery_case(case_id: str, payload: CancelRecoveryCaseRequest, request: Request):
     """Cancels an active recovery case and suppresses pending dispatches."""
-    _verify_recovery_auth(request)
+    _verify_recovery_auth(request, required_scopes=["recovery:write"])
     engine = get_recovery_engine()
     success = engine.cancel_case(case_id, reason=payload.reason)
     if not success:
@@ -1921,7 +1952,8 @@ async def cancel_recovery_case(case_id: str, payload: CancelRecoveryCaseRequest,
     summary="Get Recovery Case Event Timeline",
     description="Returns chronological events linking Razorpay Payment Links, WhatsApp dispatches, and delivery status.",
 )
-async def get_recovery_timeline(case_id: str):
+async def get_recovery_timeline(case_id: str, request: Request):
+    _verify_recovery_auth(request, required_scopes=["recovery:read"])
     engine = get_recovery_engine()
     engine_events = [e.to_dict() for e in engine.get_timeline(case_id)]
 
@@ -1943,12 +1975,10 @@ async def get_recovery_timeline(case_id: str):
     description="Retrieves a specific recovery outbox job by ID with tenant security scoping.",
 )
 async def get_outbox_job_endpoint(job_id: str, request: Request):
-    _verify_recovery_auth(request)
+    _verify_recovery_auth(request, required_scopes=["recovery:read"])
     tenant_merchant_id = getattr(request.state, "tenant_merchant_id", None)
     engine = get_recovery_engine()
     job = engine.get_outbox_job(job_id, merchant_id=tenant_merchant_id)
-    if not job:
-        job = engine.get_outbox_job(job_id, merchant_id="04a2aaf8-8c8a-4d99-852c-cefc80e82019")
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -1970,19 +2000,12 @@ async def approve_outbox_job_endpoint(
     payload: ApproveOutboxJobRequest,
     request: Request,
 ):
-    _verify_recovery_auth(request)
+    _verify_recovery_auth(request, required_scopes=["recovery:write"])
     tenant_merchant_id = getattr(request.state, "tenant_merchant_id", None)
     engine = get_recovery_engine()
 
     # Pre-check job existence and status within authenticated tenant context
     job = engine.get_outbox_job(job_id, merchant_id=tenant_merchant_id)
-    target_merchant_id = tenant_merchant_id
-    if not job and settings.wapsi_env.lower() != "production" and tenant_merchant_id == "00000000-0000-0000-0000-000000000001":
-        # Dev test key backward-compatibility for sandbox seed job
-        job = engine.get_outbox_job(job_id, merchant_id="04a2aaf8-8c8a-4d99-852c-cefc80e82019")
-        if job:
-            target_merchant_id = "04a2aaf8-8c8a-4d99-852c-cefc80e82019"
-
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -1998,7 +2021,7 @@ async def approve_outbox_job_endpoint(
     success = engine.approve_outbox_job(
         job_id=job_id,
         operator_id=payload.operator_id.strip(),
-        merchant_id=target_merchant_id,
+        merchant_id=tenant_merchant_id,
     )
     if not success:
         raise HTTPException(
@@ -2006,7 +2029,7 @@ async def approve_outbox_job_endpoint(
             detail=f"Failed to approve job '{job_id}'.",
         )
 
-    updated_job = engine.get_outbox_job(job_id, merchant_id=target_merchant_id)
+    updated_job = engine.get_outbox_job(job_id, merchant_id=tenant_merchant_id)
     if not updated_job:
         raise HTTPException(status_code=500, detail="Could not reload approved job state.")
 
@@ -2035,19 +2058,12 @@ async def reject_outbox_job_endpoint(
     payload: RejectOutboxJobRequest,
     request: Request,
 ):
-    _verify_recovery_auth(request)
+    _verify_recovery_auth(request, required_scopes=["recovery:write"])
     tenant_merchant_id = getattr(request.state, "tenant_merchant_id", None)
     engine = get_recovery_engine()
 
     # Pre-check job existence and status within authenticated tenant context
     job = engine.get_outbox_job(job_id, merchant_id=tenant_merchant_id)
-    target_merchant_id = tenant_merchant_id
-    if not job and settings.wapsi_env.lower() != "production" and tenant_merchant_id == "00000000-0000-0000-0000-000000000001":
-        # Dev test key backward-compatibility for sandbox seed job
-        job = engine.get_outbox_job(job_id, merchant_id="04a2aaf8-8c8a-4d99-852c-cefc80e82019")
-        if job:
-            target_merchant_id = "04a2aaf8-8c8a-4d99-852c-cefc80e82019"
-
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -2064,7 +2080,7 @@ async def reject_outbox_job_endpoint(
         job_id=job_id,
         operator_id=payload.operator_id.strip(),
         reason=payload.reason,
-        merchant_id=target_merchant_id,
+        merchant_id=tenant_merchant_id,
     )
     if not success:
         raise HTTPException(
@@ -2099,7 +2115,7 @@ async def get_recovery_metrics(request: Request):
 )
 async def get_worker_health(request: Request):
     """Returns background worker health, lease status, and processing state."""
-    _verify_recovery_auth(request)
+    _verify_recovery_auth(request, allow_missing_token=False)
     engine = get_recovery_engine()
     metrics = engine.get_metrics()
     return {
@@ -2225,6 +2241,7 @@ def generate_simulation_batch(n_samples: int = Query(default=10, ge=1, le=100)):
 
 @app.get("/api/v1/observational/export", tags=["Observational ML"])
 def export_observational_data(
+    request: Request,
     merchant_id: str = Query(..., description="Authenticated merchant/tenant ID"),
     eligible_only: bool = Query(default=True, description="Filter for DML-eligible observations only"),
     start_date: Optional[str] = Query(default=None, description="Start date ISO-8601 filter"),
@@ -2235,6 +2252,7 @@ def export_observational_data(
     Exports structured, tenant-isolated causal observational data for DML offline retraining.
     Enforces strict PII exclusion, tenant filtering, and counterfactual potential outcomes isolation.
     """
+    _verify_recovery_auth(request, merchant_id=merchant_id, required_scopes=["recovery:read"])
     logger_instance = get_observational_logger()
     data = logger_instance.export_dml_dataset(
         merchant_id=merchant_id,

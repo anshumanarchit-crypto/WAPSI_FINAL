@@ -154,14 +154,44 @@ class MerchantRepository:
             key_rec = session.execute(stmt).scalar_one_or_none()
             if key_rec and (key_rec.expires_at is None or key_rec.expires_at > _utc_now()):
                 merch = session.get(MerchantModel, key_rec.merchant_id)
-                if merch and merch.status == "ACTIVE":
+                if merch:
+                    scopes = key_rec.scopes if isinstance(key_rec.scopes, list) else list(key_rec.scopes or [])
                     return {
                         "merchant_id": str(merch.id),
                         "merchant_code": merch.merchant_code,
                         "merchant_status": merch.status,
-                        "key_scopes": key_rec.scopes,
+                        "key_scopes": scopes,
                     }
             return None
+
+    @staticmethod
+    def get_user_membership(
+        session: Session,
+        merchant_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> Optional[MerchantMembershipModel]:
+        """Looks up an active merchant membership for a user."""
+        stmt = select(MerchantMembershipModel).where(
+            MerchantMembershipModel.merchant_id == merchant_id,
+            MerchantMembershipModel.user_id == user_id,
+            MerchantMembershipModel.is_active == True,
+        )
+        return session.execute(stmt).scalar_one_or_none()
+
+    @staticmethod
+    def validate_user_membership(
+        session: Session,
+        merchant_id: uuid.UUID,
+        user_id: uuid.UUID,
+        required_role: Optional[str] = None,
+    ) -> bool:
+        """Validates that a user is an active member of the given merchant with required role."""
+        membership = MerchantRepository.get_user_membership(session, merchant_id, user_id)
+        if not membership:
+            return False
+        if required_role and membership.role != required_role:
+            return False
+        return True
 
 
 # ==============================================================================
