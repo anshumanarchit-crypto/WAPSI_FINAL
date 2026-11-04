@@ -412,6 +412,35 @@ class ApiClient {
   public async getFairnessMetrics(): Promise<any> {
     return this.get('/governance/fairness');
   }
+
+  // --- Synthetic Data Lab & Integration Health Methods ---
+  public async getIntegrationsHealth(): Promise<any> {
+    return this.get('/integrations/health');
+  }
+
+  public async generateSkeleton(seed: number = 42, totalRows: number = 10000): Promise<any> {
+    return this.post('/synthetic/jobs/generate-skeleton', { seed, total_rows: totalRows });
+  }
+
+  public async enrichNarratives(jobId: string, sampleRows: number = 50, provider?: string): Promise<any> {
+    return this.post(`/synthetic/jobs/${jobId}/enrich`, { sample_rows: sampleRows, preferred_provider: provider });
+  }
+
+  public async getSyntheticJobStatus(jobId: string): Promise<any> {
+    return this.get(`/synthetic/jobs/${jobId}/status`);
+  }
+
+  public async getSyntheticPreview(jobId: string, limit: number = 20, offset: number = 0): Promise<any> {
+    return this.get(`/synthetic/jobs/${jobId}/preview`, { limit, offset });
+  }
+
+  public async cancelSyntheticJob(jobId: string): Promise<any> {
+    return this.post(`/synthetic/jobs/${jobId}/cancel`);
+  }
+
+  public async getSyntheticDatasets(): Promise<any> {
+    return this.get('/synthetic/datasets');
+  }
 }
 
 export const apiClient = new ApiClient();
