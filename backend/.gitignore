@@ -20,6 +20,9 @@ ENV/
 .DS_Store
 Thumbs.db
 *.log
+tail.txt
+full_user_request.txt
+*_output.json
 
 # Environment & Secrets
 .env
