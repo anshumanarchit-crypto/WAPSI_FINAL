@@ -1,0 +1,49 @@
+================================================================================
+WAPSI SYNTHETIC RECOVERY ENVIRONMENT — DATASET SUMMARY (N=50,000)
+================================================================================
+
+[1] TREATMENT DISTRIBUTION & OBSERVED RECOVERY RATES:
+Treatment            |    Count |   Share | Observed Recovery Rate
+-----------------------------------------------------------------
+email                |    6,796 |   13.6% |                 23.31%
+incentive_link       |    6,181 |   12.4% |                 40.53%
+no_action            |    6,583 |   13.2% |                 10.59%
+retry_only           |    8,374 |   16.8% |                 36.78%
+voice_call           |    8,786 |   17.6% |                 15.57%
+whatsapp_nudge       |   13,280 |   26.6% |                 27.61%
+
+[2] GROUND-TRUTH AVERAGE TREATMENT EFFECT (ATE vs NO_ACTION):
+Treatment            |  True Mean Probability |  True ATE Uplift
+-----------------------------------------------------------------
+no_action            |                 10.83% |           +0.00%
+retry_only           |                 24.50% |          +13.66%
+whatsapp_nudge       |                 24.67% |          +13.83%
+voice_call           |                 12.12% |           +1.29%
+email                |                 21.53% |          +10.70%
+incentive_link       |                 37.91% |          +27.08%
+
+[3] LATENT CAUSAL ARCHETYPE BREAKDOWN:
+  - persuadable    :  24,129 ( 48.3%)
+  - never_taker    :  20,521 ( 41.0%)
+  - always_taker   :   3,002 (  6.0%)
+  - defier         :   2,348 (  4.7%)
+
+[4] RECOVERY RATE BY DOMAIN:
+  - b2b_saas          :   6,986 cases | Recovery Rate: 28.59%
+  - ecommerce         :  15,958 cases | Recovery Rate: 26.34%
+  - education         :   5,058 cases | Recovery Rate: 25.09%
+  - food_delivery     :   5,079 cases | Recovery Rate: 27.54%
+  - gaming            :   5,911 cases | Recovery Rate: 22.15%
+  - subscription      :   4,921 cases | Recovery Rate: 26.17%
+  - travel            :   6,087 cases | Recovery Rate: 23.57%
+
+[5] RECOVERY RATE BY DECLINE REASON:
+  - authentication_failed     :   7,899 cases | Recovery Rate: 26.43%
+  - bank_downtime             :   2,985 cases | Recovery Rate: 29.05%
+  - card_limit_exceeded       :   3,997 cases | Recovery Rate: 21.42%
+  - insufficient_funds        :  11,951 cases | Recovery Rate: 15.24%
+  - technical_gateway_error   :  10,047 cases | Recovery Rate: 36.17%
+  - upi_pin_timeout           :   9,123 cases | Recovery Rate: 25.89%
+  - user_cancelled_checkout   :   3,998 cases | Recovery Rate: 31.84%
+
+================================================================================

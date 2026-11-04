@@ -1,0 +1,255 @@
+{
+  "report_timestamp": "2026-08-30T13:08:57.552009+00:00",
+  "train_rows": 35000,
+  "test_rows": 7500,
+  "time_windows": [
+    "0-24h",
+    "24-48h",
+    "48-72h",
+    "72h+"
+  ],
+  "sample_inferences": [
+    {
+      "case_id": "case_glitch_01",
+      "recommended_window": "0-24h",
+      "hazard_by_window": {
+        "0-24h": 0.9855,
+        "24-48h": 0.0135,
+        "48-72h": 0.001,
+        "72h+": 0.0
+      },
+      "expected_hours": 12.37,
+      "cumulative_hazard": {
+        "0-24h": 0.9855,
+        "24-48h": 0.999,
+        "48-72h": 1.0,
+        "72h+": 1.0
+      },
+      "timing_drivers": {
+        "issuer": "HDFC",
+        "bin_bucket": "platinum",
+        "decline_reason": "technical_gateway_error",
+        "domain": "ecommerce",
+        "hour": 14,
+        "fatigue_score": 0.05
+      },
+      "description": "Instant Technical Gateway Error (HDFC / Platinum / Ecommerce)"
+    },
+    {
+      "case_id": "case_funds_02",
+      "recommended_window": "0-24h",
+      "hazard_by_window": {
+        "0-24h": 0.9598,
+        "24-48h": 0.0367,
+        "48-72h": 0.0035,
+        "72h+": 0.0
+      },
+      "expected_hours": 13.05,
+      "cumulative_hazard": {
+        "0-24h": 0.9598,
+        "24-48h": 0.9965,
+        "48-72h": 1.0,
+        "72h+": 1.0
+      },
+      "timing_drivers": {
+        "issuer": "SBI",
+        "bin_bucket": "classic",
+        "decline_reason": "insufficient_funds",
+        "domain": "subscription",
+        "hour": 21,
+        "fatigue_score": 0.35
+      },
+      "description": "Salary Replenishment Cycle (SBI / Classic / Subscription)"
+    },
+    {
+      "case_id": "case_b2b_03",
+      "recommended_window": "0-24h",
+      "hazard_by_window": {
+        "0-24h": 0.9904,
+        "24-48h": 0.0089,
+        "48-72h": 0.0006,
+        "72h+": 0.0
+      },
+      "expected_hours": 12.24,
+      "cumulative_hazard": {
+        "0-24h": 0.9904,
+        "24-48h": 0.9993,
+        "48-72h": 0.9999,
+        "72h+": 0.9999
+      },
+      "timing_drivers": {
+        "issuer": "CITI",
+        "bin_bucket": "corporate",
+        "decline_reason": "card_limit_exceeded",
+        "domain": "b2b_saas",
+        "hour": 11,
+        "fatigue_score": 0.1
+      },
+      "description": "B2B High-Ticket Invoice Authorization (CITI / Corporate / B2B SaaS)"
+    },
+    {
+      "case_id": "case_upi_04",
+      "recommended_window": "0-24h",
+      "hazard_by_window": {
+        "0-24h": 0.9849,
+        "24-48h": 0.0147,
+        "48-72h": 0.0004,
+        "72h+": 0.0
+      },
+      "expected_hours": 12.37,
+      "cumulative_hazard": {
+        "0-24h": 0.9849,
+        "24-48h": 0.9996,
+        "48-72h": 1.0,
+        "72h+": 1.0
+      },
+      "timing_drivers": {
+        "issuer": "ICICI",
+        "bin_bucket": "upi_standard",
+        "decline_reason": "upi_pin_timeout",
+        "domain": "food_delivery",
+        "hour": 20,
+        "fatigue_score": 0.15
+      },
+      "description": "Instant Food Delivery UPI Pin Timeout (ICICI / UPI / Food Delivery)"
+    }
+  ],
+  "decline_reason_distributions": {
+    "authentication_failed": {
+      "0-24h": 0.9974093264248705,
+      "24-48h": 0.0,
+      "48-72h": 0.0017271157167530224,
+      "72h+": 0.0008635578583765112
+    },
+    "bank_downtime": {
+      "0-24h": 0.9957894736842106,
+      "24-48h": 0.002105263157894737,
+      "48-72h": 0.002105263157894737,
+      "72h+": 0.0
+    },
+    "card_limit_exceeded": {
+      "0-24h": 0.9948542024013722,
+      "24-48h": 0.005145797598627788,
+      "48-72h": 0.0,
+      "72h+": 0.0
+    },
+    "insufficient_funds": {
+      "0-24h": 0.9972451790633609,
+      "24-48h": 0.0005509641873278236,
+      "48-72h": 0.0022038567493112946,
+      "72h+": 0.0
+    },
+    "technical_gateway_error": {
+      "0-24h": 0.997289972899729,
+      "24-48h": 0.0,
+      "48-72h": 0.0013550135501355014,
+      "72h+": 0.0013550135501355014
+    },
+    "upi_pin_timeout": {
+      "0-24h": 0.9971202303815695,
+      "24-48h": 0.0,
+      "48-72h": 0.0014398848092152627,
+      "72h+": 0.0014398848092152627
+    },
+    "user_cancelled_checkout": {
+      "0-24h": 0.9966887417218543,
+      "24-48h": 0.0,
+      "48-72h": 0.0,
+      "72h+": 0.0033112582781456954
+    }
+  },
+  "issuer_distributions": {
+    "AXIS": {
+      "0-24h": 0.997090203685742,
+      "24-48h": 0.0,
+      "48-72h": 0.0019398642095053346,
+      "72h+": 0.0009699321047526673
+    },
+    "CITI": {
+      "0-24h": 0.9964285714285714,
+      "24-48h": 0.0,
+      "48-72h": 0.0,
+      "72h+": 0.0035714285714285713
+    },
+    "HDFC": {
+      "0-24h": 0.9967517401392111,
+      "24-48h": 0.0018561484918793504,
+      "48-72h": 0.0013921113689095127,
+      "72h+": 0.0
+    },
+    "ICICI": {
+      "0-24h": 0.9957957957957958,
+      "24-48h": 0.0006006006006006006,
+      "48-72h": 0.0024024024024024023,
+      "72h+": 0.0012012012012012011
+    },
+    "KOTAK": {
+      "0-24h": 0.9966666666666667,
+      "24-48h": 0.0,
+      "48-72h": 0.0,
+      "72h+": 0.0033333333333333335
+    },
+    "OTHER": {
+      "0-24h": 1.0,
+      "24-48h": 0.0,
+      "48-72h": 0.0,
+      "72h+": 0.0
+    },
+    "SBI": {
+      "0-24h": 0.9977810650887574,
+      "24-48h": 0.0,
+      "48-72h": 0.0014792899408284023,
+      "72h+": 0.0007396449704142012
+    }
+  },
+  "domain_distributions": {
+    "b2b_saas": {
+      "0-24h": 0.9971153846153846,
+      "24-48h": 0.0,
+      "48-72h": 0.0,
+      "72h+": 0.0028846153846153848
+    },
+    "ecommerce": {
+      "0-24h": 0.9971240755957272,
+      "24-48h": 0.0,
+      "48-72h": 0.0024650780608052587,
+      "72h+": 0.0004108463434675431
+    },
+    "education": {
+      "0-24h": 1.0,
+      "24-48h": 0.0,
+      "48-72h": 0.0,
+      "72h+": 0.0
+    },
+    "food_delivery": {
+      "0-24h": 0.9974554707379135,
+      "24-48h": 0.0,
+      "48-72h": 0.001272264631043257,
+      "72h+": 0.001272264631043257
+    },
+    "gaming": {
+      "0-24h": 0.9896788990825688,
+      "24-48h": 0.005733944954128441,
+      "48-72h": 0.0022935779816513763,
+      "72h+": 0.0022935779816513763
+    },
+    "subscription": {
+      "0-24h": 0.9972337482710927,
+      "24-48h": 0.0,
+      "48-72h": 0.0027662517289073307,
+      "72h+": 0.0
+    },
+    "travel": {
+      "0-24h": 1.0,
+      "24-48h": 0.0,
+      "48-72h": 0.0,
+      "72h+": 0.0
+    }
+  },
+  "plot_paths": {
+    "timing_by_decline_reason": "evaluation\\plots\\timing_plots\\timing_by_decline_reason.png",
+    "timing_by_issuer": "evaluation\\plots\\timing_plots\\timing_by_issuer.png",
+    "timing_by_domain": "evaluation\\plots\\timing_plots\\timing_by_domain.png",
+    "timing_by_bin_bucket": "evaluation\\plots\\timing_plots\\timing_by_bin_bucket.png"
+  }
+}

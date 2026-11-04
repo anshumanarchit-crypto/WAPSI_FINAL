@@ -1,0 +1,66 @@
+==============================================================================
+WAPSI RECOVERY TIMING & DISCRETE HAZARD REPORT
+Razorpay AI Buildathon 2026 | Track 3: Causal Recovery Router
+Generated: 2026-08-30 13:08:57 UTC
+==============================================================================
+
+[1] TIMING MODEL ARCHITECTURE
+  Paradigm    : Discrete-Time Hazard Estimator (Multi-Class Gradient Boosting)
+  Objective   : Predicts conditional recovery probability P(Window | X)
+  Windows     : 0-24h (Immediate), 24-48h (Next-day), 48-72h (Multi-day), 72h+ (Extended)
+  Key Signals : decline_reason, issuer, bin_bucket, domain, amount, diurnal features
+
+[2] SAMPLE CASE TIMING RECOMMENDATIONS
+
+  Case ID: case_glitch_01 (Instant Technical Gateway Error (HDFC / Platinum / Ecommerce))
+    Recommended Window : 0-24h
+    Expected Hours     : 12.4 hours
+    Hazard by Window   : {'0-24h': 0.9855, '24-48h': 0.0135, '48-72h': 0.001, '72h+': 0.0}
+    Cumulative Hazard  : {'0-24h': 0.9855, '24-48h': 0.999, '48-72h': 1.0, '72h+': 1.0}
+
+  Case ID: case_funds_02 (Salary Replenishment Cycle (SBI / Classic / Subscription))
+    Recommended Window : 0-24h
+    Expected Hours     : 13.1 hours
+    Hazard by Window   : {'0-24h': 0.9598, '24-48h': 0.0367, '48-72h': 0.0035, '72h+': 0.0}
+    Cumulative Hazard  : {'0-24h': 0.9598, '24-48h': 0.9965, '48-72h': 1.0, '72h+': 1.0}
+
+  Case ID: case_b2b_03 (B2B High-Ticket Invoice Authorization (CITI / Corporate / B2B SaaS))
+    Recommended Window : 0-24h
+    Expected Hours     : 12.2 hours
+    Hazard by Window   : {'0-24h': 0.9904, '24-48h': 0.0089, '48-72h': 0.0006, '72h+': 0.0}
+    Cumulative Hazard  : {'0-24h': 0.9904, '24-48h': 0.9993, '48-72h': 0.9999, '72h+': 0.9999}
+
+  Case ID: case_upi_04 (Instant Food Delivery UPI Pin Timeout (ICICI / UPI / Food Delivery))
+    Recommended Window : 0-24h
+    Expected Hours     : 12.4 hours
+    Hazard by Window   : {'0-24h': 0.9849, '24-48h': 0.0147, '48-72h': 0.0004, '72h+': 0.0}
+    Cumulative Hazard  : {'0-24h': 0.9849, '24-48h': 0.9996, '48-72h': 1.0, '72h+': 1.0}
+
+[3] DOMINANT TIMING WINDOWS BY DECLINE REASON
+  authentication_failed      -> Top Window: 0-24h    (99.7%)
+  bank_downtime              -> Top Window: 0-24h    (99.6%)
+  card_limit_exceeded        -> Top Window: 0-24h    (99.5%)
+  insufficient_funds         -> Top Window: 0-24h    (99.7%)
+  technical_gateway_error    -> Top Window: 0-24h    (99.7%)
+  upi_pin_timeout            -> Top Window: 0-24h    (99.7%)
+  user_cancelled_checkout    -> Top Window: 0-24h    (99.7%)
+
+[4] DOMINANT TIMING WINDOWS BY CARD ISSUER
+  AXIS       -> Top Window: 0-24h    (99.7%)
+  CITI       -> Top Window: 0-24h    (99.6%)
+  HDFC       -> Top Window: 0-24h    (99.7%)
+  ICICI      -> Top Window: 0-24h    (99.6%)
+  KOTAK      -> Top Window: 0-24h    (99.7%)
+  OTHER      -> Top Window: 0-24h    (100.0%)
+  SBI        -> Top Window: 0-24h    (99.8%)
+
+[5] DOMINANT TIMING WINDOWS BY DOMAIN
+  b2b_saas           -> Top Window: 0-24h    (99.7%)
+  ecommerce          -> Top Window: 0-24h    (99.7%)
+  education          -> Top Window: 0-24h    (100.0%)
+  food_delivery      -> Top Window: 0-24h    (99.7%)
+  gaming             -> Top Window: 0-24h    (99.0%)
+  subscription       -> Top Window: 0-24h    (99.7%)
+  travel             -> Top Window: 0-24h    (100.0%)
+
+==============================================================================

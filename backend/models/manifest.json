@@ -1,0 +1,66 @@
+{
+  "active_production_version": "v1.2.0-dml",
+  "registered_models": [
+    {
+      "model_name": "wapsi_t_learner",
+      "version": "v1.0.0",
+      "filename": "wapsi_t_learner_v1.0.0.joblib",
+      "artifact_path": "models/wapsi_t_learner_v1.0.0.joblib",
+      "registered_at": "2026-08-30T11:10:38.643903+00:00",
+      "model_type": "MultiActionTLearner",
+      "training_rows": 35000,
+      "random_seed": 42,
+      "metrics": {
+        "retry_only_qini": 104.22,
+        "whatsapp_nudge_qini": 71.38,
+        "voice_call_qini": 69.26,
+        "email_qini": 45.24,
+        "incentive_link_qini": 43.50,
+        "test_conformal_coverage": 0.8673
+      },
+      "readiness_status": "BENCHMARK_VALIDATED_AWAITING_PRODUCTION_LOGS",
+      "is_production": false
+    },
+    {
+      "model_name": "wapsi_x_learner",
+      "version": "v1.1.0",
+      "filename": "wapsi_x_learner_v1.1.0.joblib",
+      "artifact_path": "models/wapsi_x_learner_v1.1.0.joblib",
+      "registered_at": "2026-11-02T11:54:05+00:00",
+      "model_type": "MultiActionXLearner",
+      "training_rows": 35000,
+      "random_seed": 42,
+      "metrics": {
+        "retry_only_qini": 102.89,
+        "whatsapp_nudge_qini": 72.09,
+        "voice_call_qini": 67.11,
+        "email_qini": 48.70,
+        "incentive_link_qini": 46.45,
+        "test_conformal_coverage": 0.8710
+      },
+      "readiness_status": "BENCHMARK_VALIDATED_AWAITING_PRODUCTION_LOGS",
+      "is_production": false
+    },
+    {
+      "model_name": "wapsi_dml",
+      "version": "v1.2.0-dml",
+      "filename": "wapsi_dml_v1.2.0.joblib",
+      "artifact_path": "models/wapsi_dml_v1.2.0.joblib",
+      "registered_at": "2026-11-02T11:53:50+00:00",
+      "model_type": "MultiActionDoubleMachineLearning",
+      "training_rows": 35000,
+      "random_seed": 42,
+      "metrics": {
+        "retry_only_qini": 99.49,
+        "whatsapp_nudge_qini": 74.03,
+        "voice_call_qini": 61.73,
+        "email_qini": 42.71,
+        "incentive_link_qini": 44.20,
+        "test_conformal_coverage": 0.8840,
+        "positivity_overlap_satisfied": true
+      },
+      "readiness_status": "BENCHMARK_VALIDATED_AWAITING_PRODUCTION_LOGS",
+      "is_production": true
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+==============================================================================
+WAPSI UPLIFT EVALUATION REPORT
+Razorpay AI Buildathon 2026 | Causal Recovery Decision Engine
+Generated: 2026-08-30 13:01:12 UTC
+==============================================================================
+
+[1] EVALUATION SETUP
+  Train rows    : 35000
+  Test rows     : 7500
+  Evaluation    : T-Learner vs Oracle (hidden CATE) vs Random Targeting
+  Isolation     : Model trained on observed data ONLY (no tau_* or y_* columns)
+
+[2] OVERALL QINI COEFFICIENT (Best-Action vs No-Action)
+  T-Learner Qini coefficient : 0.022505
+  Oracle Qini coefficient    : 0.041815
+  Interpretation: Positive Qini = model prioritizes persuadable cases better than random
+
+[3] PER-TREATMENT QINI COEFFICIENTS
+  retry_only          : Qini=+0.1914  (n=2206, n_treated=1213, n_control=993)
+  whatsapp_nudge      : Qini=+0.0816  (n=3066, n_treated=2073, n_control=993)
+  voice_call          : Qini=+0.1165  (n=2282, n_treated=1289, n_control=993)
+  email               : Qini=+0.1036  (n=2013, n_treated=1020, n_control=993)
+  incentive_link      : Qini=+0.0988  (n=1905, n_treated=912, n_control=993)
+
+[4] AUUC (Area Under Uplift Curve vs Random Baseline)
+  retry_only          : AUUC=+0.174276, Oracle AUUC=0.199904
+  whatsapp_nudge      : AUUC=+0.109902, Oracle AUUC=0.143166
+  voice_call          : AUUC=+0.156808, Oracle AUUC=0.165011
+  email               : AUUC=+0.101064, Oracle AUUC=0.123278
+  incentive_link      : AUUC=+0.137816, Oracle AUUC=0.15593
+
+[5] MODEL ROUTING EFFICIENCY (vs Oracle CATE Ranking)
+  Pearson corr (model uplift vs oracle CATE) : 0.7995
+  Spearman rho (model uplift vs oracle CATE)  : 0.8
+  Best-action match rate (model vs oracle)    : 0.8532
+
+[6] SEGMENT-LEVEL QINI BY DOMAIN
+  b2b_saas       : Qini=+0.0334  (n=1040)
+  ecommerce      : Qini=+0.0207  (n=2434)
+  education      : Qini=-0.0016  (n=755)
+  food_delivery  : Qini=+0.0188  (n=786)
+  gaming         : Qini=+0.0157  (n=872)
+  subscription   : Qini=+0.0232  (n=723)
+  travel         : Qini=+0.0392  (n=890)
+
+[7] BUSINESS KPIs (Factual Test Set -- No Fabrication)
+  Control (no_action) recovery rate: 10.2%
+  retry_only          : rate=35.8% (+25.6% vs control), Rs/contact=Rs.1,440, Rs/fatigue=Rs.3,901
+                          Rs/retry=Rs.942
+  whatsapp_nudge      : rate=28.0% (+17.8% vs control), Rs/contact=Rs.678, Rs/fatigue=Rs.1,781
+  voice_call          : rate=15.8% (+5.7% vs control), Rs/contact=Rs.1,889, Rs/fatigue=Rs.4,872
+  email               : rate=23.0% (+12.9% vs control), Rs/contact=Rs.1,764, Rs/fatigue=Rs.4,590
+  incentive_link      : rate=36.8% (+26.7% vs control), Rs/contact=Rs.1,492, Rs/fatigue=Rs.3,686
+
+==============================================================================
+FINAL VERDICT: Does WAPSI rank persuadable customers better than random?
+==============================================================================
+
+  5/5 treatment arms show POSITIVE Qini coefficient
+  5/5 treatment arms show POSITIVE AUUC vs random
+
+  VERDICT: YES -- WAPSI's T-Learner ranks persuadable customers significantly better than random targeting.
+
+  The model successfully identifies cases where intervention creates incremental recovery, rather than merely identifying customers who would recover anyway. The Spearman rank correlation with oracle CATE is 0.800, confirming meaningful causal signal extraction.
+
+==============================================================================

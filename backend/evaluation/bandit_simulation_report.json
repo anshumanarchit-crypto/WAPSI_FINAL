@@ -1,0 +1,20 @@
+{
+  "generated_at": "2026-08-30T13:23:36.175472+00:00",
+  "n_steps": 2500,
+  "ts_cumulative_regret_final": 2201637.7,
+  "random_cumulative_regret_final": 2392280.68,
+  "regret_reduction_pct": 7.97,
+  "ts_net_revenue_inr": 931210.17,
+  "random_net_revenue_inr": 740567.19,
+  "oracle_net_revenue_inr": 3132847.87,
+  "incremental_revenue_vs_random_inr": 190642.98,
+  "action_selection_distribution": {
+    "no_action": 445,
+    "retry_only": 370,
+    "whatsapp_nudge": 352,
+    "voice_call": 609,
+    "email": 439,
+    "incentive_link": 285
+  },
+  "plot_path": "evaluation\\plots\\bandit_regret_simulation.png"
+}

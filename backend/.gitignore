@@ -1,0 +1,38 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Pytest / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Supabase CLI Local State
+supabase/.temp/
+
+# WAPSI Local Development Data & SQLite
+.wapsi_data/
+*.db
+.tmp_*
+.wapsi_worker_heartbeat*
+

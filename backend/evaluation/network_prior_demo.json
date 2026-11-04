@@ -1,0 +1,236 @@
+{
+  "generated_at": "2026-08-30T13:20:21.563945+00:00",
+  "shrinkage_half_life_n0": 100.0,
+  "global_network_priors": {
+    "retry_only": 0.2624,
+    "whatsapp_nudge": 0.1695,
+    "voice_call": 0.0499,
+    "email": 0.1267,
+    "incentive_link": 0.3099
+  },
+  "demonstration_scenarios": [
+    {
+      "scenario": "Cold-Start Early Startup (10 cases)",
+      "input": {
+        "scenario": "Cold-Start Early Startup (10 cases)",
+        "merchant_id": "merch_cold_start_10",
+        "observations": 10,
+        "domain": "ecommerce",
+        "decline_reason": "user_cancelled_checkout",
+        "raw_merchant_uplifts": {
+          "retry_only": 0.05,
+          "whatsapp_nudge": 0.02,
+          "voice_call": -0.05,
+          "email": 0.0,
+          "incentive_link": 0.1
+        }
+      },
+      "shrinkage_output": {
+        "merchant_id": "merch_cold_start_10",
+        "merchant_observations": 10,
+        "shrinkage_half_life": 100.0,
+        "merchant_weight": 0.0909,
+        "network_weight": 0.9091,
+        "shrunk_uplifts": {
+          "retry_only": 0.0522,
+          "whatsapp_nudge": 0.3329,
+          "voice_call": 0.0837,
+          "email": 0.0773,
+          "incentive_link": 0.5488
+        },
+        "per_action_breakdown": {
+          "retry_only": {
+            "action": "retry_only",
+            "network_uplift": 0.0524,
+            "merchant_uplift": 0.05,
+            "merchant_observations": 10,
+            "merchant_weight": 0.0909,
+            "combined_uplift": 0.0522
+          },
+          "whatsapp_nudge": {
+            "action": "whatsapp_nudge",
+            "network_uplift": 0.3642,
+            "merchant_uplift": 0.02,
+            "merchant_observations": 10,
+            "merchant_weight": 0.0909,
+            "combined_uplift": 0.3329
+          },
+          "voice_call": {
+            "action": "voice_call",
+            "network_uplift": 0.0971,
+            "merchant_uplift": -0.05,
+            "merchant_observations": 10,
+            "merchant_weight": 0.0909,
+            "combined_uplift": 0.0837
+          },
+          "email": {
+            "action": "email",
+            "network_uplift": 0.085,
+            "merchant_uplift": 0.0,
+            "merchant_observations": 10,
+            "merchant_weight": 0.0909,
+            "combined_uplift": 0.0773
+          },
+          "incentive_link": {
+            "action": "incentive_link",
+            "network_uplift": 0.5937,
+            "merchant_uplift": 0.1,
+            "merchant_observations": 10,
+            "merchant_weight": 0.0909,
+            "combined_uplift": 0.5488
+          }
+        },
+        "architecture_note": "Transparent partial pooling empirical Bayes approximation of hierarchical model."
+      }
+    },
+    {
+      "scenario": "Mid-Stage Merchant at Half-Life (100 cases)",
+      "input": {
+        "scenario": "Mid-Stage Merchant at Half-Life (100 cases)",
+        "merchant_id": "merch_mid_growth_100",
+        "observations": 100,
+        "domain": "subscription",
+        "decline_reason": "insufficient_funds",
+        "raw_merchant_uplifts": {
+          "retry_only": 0.18,
+          "whatsapp_nudge": 0.22,
+          "voice_call": 0.08,
+          "email": 0.04,
+          "incentive_link": 0.15
+        }
+      },
+      "shrinkage_output": {
+        "merchant_id": "merch_mid_growth_100",
+        "merchant_observations": 100,
+        "shrinkage_half_life": 100.0,
+        "merchant_weight": 0.5,
+        "network_weight": 0.5,
+        "shrunk_uplifts": {
+          "retry_only": 0.0885,
+          "whatsapp_nudge": 0.1507,
+          "voice_call": 0.0403,
+          "email": 0.1027,
+          "incentive_link": 0.2523
+        },
+        "per_action_breakdown": {
+          "retry_only": {
+            "action": "retry_only",
+            "network_uplift": -0.0029,
+            "merchant_uplift": 0.18,
+            "merchant_observations": 100,
+            "merchant_weight": 0.5,
+            "combined_uplift": 0.0885
+          },
+          "whatsapp_nudge": {
+            "action": "whatsapp_nudge",
+            "network_uplift": 0.0813,
+            "merchant_uplift": 0.22,
+            "merchant_observations": 100,
+            "merchant_weight": 0.5,
+            "combined_uplift": 0.1507
+          },
+          "voice_call": {
+            "action": "voice_call",
+            "network_uplift": 0.0005,
+            "merchant_uplift": 0.08,
+            "merchant_observations": 100,
+            "merchant_weight": 0.5,
+            "combined_uplift": 0.0403
+          },
+          "email": {
+            "action": "email",
+            "network_uplift": 0.1654,
+            "merchant_uplift": 0.04,
+            "merchant_observations": 100,
+            "merchant_weight": 0.5,
+            "combined_uplift": 0.1027
+          },
+          "incentive_link": {
+            "action": "incentive_link",
+            "network_uplift": 0.3546,
+            "merchant_uplift": 0.15,
+            "merchant_observations": 100,
+            "merchant_weight": 0.5,
+            "combined_uplift": 0.2523
+          }
+        },
+        "architecture_note": "Transparent partial pooling empirical Bayes approximation of hierarchical model."
+      }
+    },
+    {
+      "scenario": "High-Volume Mature Enterprise (10,000 cases)",
+      "input": {
+        "scenario": "High-Volume Mature Enterprise (10,000 cases)",
+        "merchant_id": "merch_enterprise_10000",
+        "observations": 10000,
+        "domain": "ecommerce",
+        "decline_reason": "technical_gateway_error",
+        "raw_merchant_uplifts": {
+          "retry_only": 0.42,
+          "whatsapp_nudge": 0.29,
+          "voice_call": 0.06,
+          "email": 0.03,
+          "incentive_link": 0.21
+        }
+      },
+      "shrinkage_output": {
+        "merchant_id": "merch_enterprise_10000",
+        "merchant_observations": 10000,
+        "shrinkage_half_life": 100.0,
+        "merchant_weight": 0.9901,
+        "network_weight": 0.0099,
+        "shrunk_uplifts": {
+          "retry_only": 0.42,
+          "whatsapp_nudge": 0.2878,
+          "voice_call": 0.0584,
+          "email": 0.0299,
+          "incentive_link": 0.21
+        },
+        "per_action_breakdown": {
+          "retry_only": {
+            "action": "retry_only",
+            "network_uplift": 0.4198,
+            "merchant_uplift": 0.42,
+            "merchant_observations": 10000,
+            "merchant_weight": 0.9901,
+            "combined_uplift": 0.42
+          },
+          "whatsapp_nudge": {
+            "action": "whatsapp_nudge",
+            "network_uplift": 0.0672,
+            "merchant_uplift": 0.29,
+            "merchant_observations": 10000,
+            "merchant_weight": 0.9901,
+            "combined_uplift": 0.2878
+          },
+          "voice_call": {
+            "action": "voice_call",
+            "network_uplift": -0.0983,
+            "merchant_uplift": 0.06,
+            "merchant_observations": 10000,
+            "merchant_weight": 0.9901,
+            "combined_uplift": 0.0584
+          },
+          "email": {
+            "action": "email",
+            "network_uplift": 0.0154,
+            "merchant_uplift": 0.03,
+            "merchant_observations": 10000,
+            "merchant_weight": 0.9901,
+            "combined_uplift": 0.0299
+          },
+          "incentive_link": {
+            "action": "incentive_link",
+            "network_uplift": 0.2114,
+            "merchant_uplift": 0.21,
+            "merchant_observations": 10000,
+            "merchant_weight": 0.9901,
+            "combined_uplift": 0.21
+          }
+        },
+        "architecture_note": "Transparent partial pooling empirical Bayes approximation of hierarchical model."
+      }
+    }
+  ],
+  "architecture_classification": "Hackathon partial pooling approximation of hierarchical Bayesian system."
+}

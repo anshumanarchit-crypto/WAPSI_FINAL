@@ -1,0 +1,261 @@
+{
+  "total_samples": 50000,
+  "treatment_summary": {
+    "email": {
+      "count": 6796,
+      "share": 0.1359,
+      "recovery_rate": 0.2331
+    },
+    "incentive_link": {
+      "count": 6181,
+      "share": 0.1236,
+      "recovery_rate": 0.4053
+    },
+    "no_action": {
+      "count": 6583,
+      "share": 0.1317,
+      "recovery_rate": 0.1059
+    },
+    "retry_only": {
+      "count": 8374,
+      "share": 0.1675,
+      "recovery_rate": 0.3678
+    },
+    "voice_call": {
+      "count": 8786,
+      "share": 0.1757,
+      "recovery_rate": 0.1557
+    },
+    "whatsapp_nudge": {
+      "count": 13280,
+      "share": 0.2656,
+      "recovery_rate": 0.2761
+    }
+  },
+  "domain_summary": {
+    "b2b_saas": {
+      "count": 6986,
+      "recovery_rate": 0.2859
+    },
+    "ecommerce": {
+      "count": 15958,
+      "recovery_rate": 0.2634
+    },
+    "education": {
+      "count": 5058,
+      "recovery_rate": 0.2509
+    },
+    "food_delivery": {
+      "count": 5079,
+      "recovery_rate": 0.2754
+    },
+    "gaming": {
+      "count": 5911,
+      "recovery_rate": 0.2215
+    },
+    "subscription": {
+      "count": 4921,
+      "recovery_rate": 0.2617
+    },
+    "travel": {
+      "count": 6087,
+      "recovery_rate": 0.2357
+    }
+  },
+  "decline_reason_summary": {
+    "authentication_failed": {
+      "count": 7899,
+      "recovery_rate": 0.2643
+    },
+    "bank_downtime": {
+      "count": 2985,
+      "recovery_rate": 0.2905
+    },
+    "card_limit_exceeded": {
+      "count": 3997,
+      "recovery_rate": 0.2142
+    },
+    "insufficient_funds": {
+      "count": 11951,
+      "recovery_rate": 0.1524
+    },
+    "technical_gateway_error": {
+      "count": 10047,
+      "recovery_rate": 0.3617
+    },
+    "upi_pin_timeout": {
+      "count": 9123,
+      "recovery_rate": 0.2589
+    },
+    "user_cancelled_checkout": {
+      "count": 3998,
+      "recovery_rate": 0.3184
+    }
+  },
+  "ground_truth_ate": {
+    "no_action": {
+      "true_p_mean": 0.1083,
+      "true_ate_vs_no_action": 0.0
+    },
+    "retry_only": {
+      "true_p_mean": 0.245,
+      "true_ate_vs_no_action": 0.1366
+    },
+    "whatsapp_nudge": {
+      "true_p_mean": 0.2467,
+      "true_ate_vs_no_action": 0.1383
+    },
+    "voice_call": {
+      "true_p_mean": 0.1212,
+      "true_ate_vs_no_action": 0.0129
+    },
+    "email": {
+      "true_p_mean": 0.2153,
+      "true_ate_vs_no_action": 0.107
+    },
+    "incentive_link": {
+      "true_p_mean": 0.3791,
+      "true_ate_vs_no_action": 0.2708
+    }
+  },
+  "archetype_distribution": {
+    "persuadable": {
+      "count": 24129,
+      "share": 0.4826
+    },
+    "never_taker": {
+      "count": 20521,
+      "share": 0.4104
+    },
+    "always_taker": {
+      "count": 3002,
+      "share": 0.06
+    },
+    "defier": {
+      "count": 2348,
+      "share": 0.047
+    }
+  },
+  "top_segment_heterogeneity": [
+    {
+      "domain": "b2b_saas",
+      "decline_reason": "authentication_failed",
+      "case_count": 1124,
+      "baseline_organic_rate": 0.116,
+      "dominant_optimal_treatment": "email",
+      "mean_oracle_uplift": 0.3787
+    },
+    {
+      "domain": "b2b_saas",
+      "decline_reason": "bank_downtime",
+      "case_count": 416,
+      "baseline_organic_rate": 0.0787,
+      "dominant_optimal_treatment": "retry_only",
+      "mean_oracle_uplift": 0.5311
+    },
+    {
+      "domain": "b2b_saas",
+      "decline_reason": "card_limit_exceeded",
+      "case_count": 567,
+      "baseline_organic_rate": 0.0443,
+      "dominant_optimal_treatment": "incentive_link",
+      "mean_oracle_uplift": 0.5217
+    },
+    {
+      "domain": "b2b_saas",
+      "decline_reason": "insufficient_funds",
+      "case_count": 1589,
+      "baseline_organic_rate": 0.0299,
+      "dominant_optimal_treatment": "incentive_link",
+      "mean_oracle_uplift": 0.484
+    },
+    {
+      "domain": "b2b_saas",
+      "decline_reason": "technical_gateway_error",
+      "case_count": 1462,
+      "baseline_organic_rate": 0.1383,
+      "dominant_optimal_treatment": "retry_only",
+      "mean_oracle_uplift": 0.4847
+    },
+    {
+      "domain": "b2b_saas",
+      "decline_reason": "upi_pin_timeout",
+      "case_count": 1247,
+      "baseline_organic_rate": 0.1159,
+      "dominant_optimal_treatment": "email",
+      "mean_oracle_uplift": 0.3767
+    },
+    {
+      "domain": "b2b_saas",
+      "decline_reason": "user_cancelled_checkout",
+      "case_count": 581,
+      "baseline_organic_rate": 0.1146,
+      "dominant_optimal_treatment": "email",
+      "mean_oracle_uplift": 0.4005
+    },
+    {
+      "domain": "ecommerce",
+      "decline_reason": "authentication_failed",
+      "case_count": 2498,
+      "baseline_organic_rate": 0.1341,
+      "dominant_optimal_treatment": "incentive_link",
+      "mean_oracle_uplift": 0.3043
+    },
+    {
+      "domain": "ecommerce",
+      "decline_reason": "bank_downtime",
+      "case_count": 914,
+      "baseline_organic_rate": 0.0952,
+      "dominant_optimal_treatment": "retry_only",
+      "mean_oracle_uplift": 0.5076
+    },
+    {
+      "domain": "ecommerce",
+      "decline_reason": "card_limit_exceeded",
+      "case_count": 1227,
+      "baseline_organic_rate": 0.049,
+      "dominant_optimal_treatment": "incentive_link",
+      "mean_oracle_uplift": 0.6108
+    },
+    {
+      "domain": "ecommerce",
+      "decline_reason": "insufficient_funds",
+      "case_count": 3914,
+      "baseline_organic_rate": 0.0356,
+      "dominant_optimal_treatment": "incentive_link",
+      "mean_oracle_uplift": 0.6127
+    },
+    {
+      "domain": "ecommerce",
+      "decline_reason": "technical_gateway_error",
+      "case_count": 3209,
+      "baseline_organic_rate": 0.1642,
+      "dominant_optimal_treatment": "retry_only",
+      "mean_oracle_uplift": 0.468
+    },
+    {
+      "domain": "ecommerce",
+      "decline_reason": "upi_pin_timeout",
+      "case_count": 2908,
+      "baseline_organic_rate": 0.1303,
+      "dominant_optimal_treatment": "incentive_link",
+      "mean_oracle_uplift": 0.3096
+    },
+    {
+      "domain": "ecommerce",
+      "decline_reason": "user_cancelled_checkout",
+      "case_count": 1288,
+      "baseline_organic_rate": 0.1325,
+      "dominant_optimal_treatment": "incentive_link",
+      "mean_oracle_uplift": 0.5236
+    },
+    {
+      "domain": "education",
+      "decline_reason": "authentication_failed",
+      "case_count": 811,
+      "baseline_organic_rate": 0.1212,
+      "dominant_optimal_treatment": "email",
+      "mean_oracle_uplift": 0.26
+    }
+  ]
+}

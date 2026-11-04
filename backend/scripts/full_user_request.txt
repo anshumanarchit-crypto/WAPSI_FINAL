@@ -1,0 +1,320 @@
+<USER_REQUEST>
+# WAPSI — Phase 3 Final Closure: E2E Runner Corrections and Execution Gate
+
+## Project Context
+
+WAPSI Phase 3 implementation and Phase 3.1 infrastructure are complete.
+
+The Phase 3 Final Recovery Execution Readiness Report confirms that the following components are implemented:
+
+- Razorpay Test Mode client.
+- WhatsApp Cloud API integration.
+- Payment Recovery Orchestrator.
+- Durable PostgreSQL recovery outbox.
+- Recovery background worker.
+- Razorpay and WhatsApp webhook handlers.
+- Payment reconciliation engine.
+- Recovery timeline and audit ledger.
+
+Active branch:
+
+`wapsi/phase3-recovery-workflow`
+
+Hosted database:
+
+`WAPSI-DEV-MUMBAI`
+
+Project reference:
+
+`filofxijqmgluuulivxb`
+
+Runtime database role:
+
+`wapsi_app`
+
+The hosted database has migrations 1–7 applied. FastAPI uses the restricted application role. Do not repeat completed infrastructure work.
+
+The existing E2E runner is:
+
+`scripts/e2e_recovery_sandbox_runner.py`
+
+Its intended command is:
+
+`py -3.13 scripts/e2e_recovery_sandbox_runner.py --execute --confirm`
+
+However, the final execution plan needs the following corrections before external authorization.
+
+## 1. Verify the sandbox merchant
+
+The current runner refers to:
+
+`00000000-0000-0000-0000-000000000001`
+
+and merchant code:
+
+`MRC_928374`
+
+Verify the exact merchant UUID and merchant code from the actual hosted database.
+
+Requirements:
+
+- Verify the merchant exists.
+- Verify it is ACTIVE.
+- Verify the authenticated runtime role can access it through the correct tenant context.
+- Verify the existing merchant is approved for sandbox testing.
+- Do not create another merchant automatically.
+- Do not assume the UUID is correct merely because it appears in the script.
+
+If merchant provenance is unclear, stop and report the blocker.
+
+## 2. Correct outbox state transitions
+
+Inspect the actual deployed Migration 5 and Migration 7.
+
+The allowed recovery_outbox states are:
+
+- QUEUED
+- SENDING
+- SENT
+- FAILED
+- RETRY
+- DEAD_LETTER
+- RECONCILIATION_REQUIRED
+- CANCELLED
+
+Do not use `COMPLETED` or other unsupported values.
+
+Keep the state machines distinct:
+
+- Outbox tracks delivery-job execution.
+- Recovery case tracks the business recovery lifecycle.
+- Recovery dispatch records provider communication.
+- Payment outcome records verified financial status.
+
+A successfully accepted WhatsApp dispatch may transition the outbox job to SENT, subject to the actual provider-response semantics.
+
+A recovery case may transition to RECOVERED only after authoritative payment verification.
+
+Preserve the existing zero-DELETE invariant.
+
+## 3. Correct WhatsApp payment-link delivery
+
+Inspect the actual approved WhatsApp template configuration.
+
+Important:
+
+Meta's generic `hello_world` template does not communicate the Razorpay payment link.
+
+The E2E scenario must use one of these valid approaches:
+
+A. An approved WhatsApp template specifically designed to carry a payment-link URL as a template variable.
+
+OR
+
+B. An inbound test-recipient message that opens the 24-hour customer service window, followed by an approved freeform payment-link message within that window.
+
+Requirements:
+
+- Do not assume a template is approved.
+- Verify its name, language and variable structure.
+- Never send a template without confirming that it can carry the intended payment link.
+- Do not use arbitrary rich-text dispatch outside the 24-hour window.
+- Preserve customer opt-out and fatigue checks.
+
+If no valid link-bearing template exists and the 24-hour window is inactive, mark the test as BLOCKED pending an approved template or recipient reply.
+
+Do not send hello_world and describe it as successful payment-link delivery.
+
+## 4. Verify webhook reachability and signatures
+
+Inspect actual webhook configuration.
+
+For Razorpay:
+
+- Verify the externally configured HTTPS callback URL.
+- Verify raw-body HMAC-SHA256 validation.
+- Verify that the configured webhook secret matches the secret used by the backend.
+- Verify event-ID deduplication.
+- Verify payment and payment-link event parsing.
+
+For Meta WhatsApp:
+
+- Verify the HTTPS webhook callback is externally reachable.
+- Verify GET handshake configuration.
+- Verify POST X-Hub-Signature-256 validation.
+- Verify delivery-status normalization.
+- Verify provider message IDs are persisted and deduplicated.
+
+Never print webhook secrets.
+
+Important distinction:
+
+A locally simulated signed webhook tests handler logic only. It does not prove that Razorpay or Meta delivered a real webhook.
+
+If externally reachable callback configuration is not available, document the limitation and provide a separate local signed-webhook test. Do not report a simulated callback as a live provider receipt.
+
+## 5. Correct payment verification
+
+The intended test transaction is ₹10.00 (1000 paise).
+
+Requirements:
+
+1. Create the payment link exclusively through Razorpay Test Mode.
+2. Preserve the Razorpay payment-link ID.
+3. Use the test checkout flow.
+4. Verify payment status through the authoritative Razorpay retrieval/reconciliation API.
+5. Verify the captured amount and currency.
+6. Verify payment-link and payment identifiers match the original recovery case.
+7. Process the genuine provider webhook if received.
+8. Deduplicate payment events.
+9. Preserve late-event and reconciliation behavior.
+
+Do not transition the case to RECOVERED solely because a signed simulated payment_link.paid event was submitted.
+
+If checkout is not completed, the case must remain in its appropriate pending or reconciliation state.
+
+Do not use live funds or production credentials.
+
+## 6. Verify data provenance and audit behavior
+
+Before execution, confirm that the sandbox merchant and test recipient are correctly configured.
+
+Every E2E record must contain traceable sandbox provenance where supported:
+
+- environment: sandbox_e2e_verification
+- test_run: phase_3_final_closure
+- merchant_id
+- execution identifier
+- source event/provider IDs
+
+Record all created outbox, dispatch, outcome, webhook and audit records.
+
+Do not delete audit records to make the test database appear clean.
+
+Preserve the zero-DELETE role invariant.
+
+Do not claim that zero records have ever existed. Report actual created rows and their final state.
+
+## 7. Final E2E runner behavior
+
+Inspect and update:
+
+`scripts/e2e_recovery_sandbox_runner.py`
+
+The runner must have two clear modes:
+
+**Dry-run mode**
+
+- Checks runtime identity.
+- Checks sandbox credentials without revealing them.
+- Checks merchant identity.
+- Checks payment amount.
+- Checks recipient configuration.
+- Checks opt-out state.
+- Checks WhatsApp template/window eligibility.
+- Checks webhook readiness.
+- Checks database permissions.
+- Makes no provider dispatches and no hosted business-data writes.
+
+**Execution mode**
+
+Requires the explicit `--execute --confirm` flags and a separately authorized operator action.
+
+Before the first external side effect, the runner must recheck all critical invariants.
+
+It must stop safely if any mandatory check fails.
+
+Do not start the worker's continuous dispatch loop. Process only the one explicitly authorized E2E job.
+
+## 8. Recovery state and audit validation
+
+The expected lifecycle should distinguish:
+
+- Recovery case creation.
+- Outbox enqueue.
+- Job claim.
+- Payment-link creation.
+- WhatsApp dispatch.
+- Provider acceptance.
+- WhatsApp delivery.
+- Payment capture.
+- Payment reconciliation.
+- Final recovery state.
+
+The final RECOVERED state requires verified successful payment capture.
+
+If payment is not captured, do not fabricate success.
+
+Preserve the complete timeline and audit hash-chain records.
+
+## 9. Test requirements
+
+Use isolated local PostgreSQL and mocked external providers to verify:
+
+- Outbox status constraint compatibility.
+- Merchant UUID validation.
+- WhatsApp template eligibility.
+- 24-hour window enforcement.
+- Webhook signature failure.
+- Duplicate webhook handling.
+- Razorpay payment reconciliation.
+- Payment-link identifier matching.
+- Missing payment outcome.
+- Incorrect amount or currency.
+- Opt-out suppression.
+- Failure and ambiguous-timeout handling.
+- No synthetic event represented as a real provider event.
+
+Run the existing backend regression suite.
+
+## 10. Strict execution boundary
+
+During this task:
+
+- Do not create a payment link.
+- Do not send WhatsApp messages.
+- Do not make a real checkout payment.
+- Do not start the dispatch loop.
+- Do not trigger provider webhooks.
+- Do not create additional hosted business records.
+- Do not modify database credentials.
+- Do not change the runtime role.
+- Do not modify migrations 1–7.
+- Do not commit or push Git changes.
+
+## 11. Final deliverable
+
+Create:
+
+`docs/PHASE_3_FINAL_CLOSURE_EXECUTION_GATE_REPORT.md`
+
+Include:
+
+- Actual merchant identity verification.
+- E2E runner corrections.
+- Actual outbox state compatibility.
+- WhatsApp template readiness.
+- Webhook reachability and signature readiness.
+- Razorpay verification readiness.
+- Sandbox data-provenance plan.
+- Local regression test results.
+- Remaining external dependencies.
+- Exact command required for eventual operator-authorized execution.
+
+Clearly classify the test as READY or BLOCKED.
+
+STOP after producing this report.
+
+Do not perform external execution. Await explicit operator authorization.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-11-01T16:26:06+05:30.
+
+The user's current state is as follows:
+Other open documents:
+- c:\Users\arpit\Desktop\Razorpay\Razorpay\tests\test_phase3_1e1_tenant_alignment.py (LANGUAGE_UNSPECIFIED)
+- c:\Users\arpit\Desktop\Razorpay\Razorpay\scripts\verify_phase3_1c_hosted_catalog.py (LANGUAGE_UNSPECIFIED)
+- c:\Users\arpit\Desktop\Razorpay\Razorpay\tests\test_frontend_adapter.py (LANGUAGE_UNSPECIFIED)
+- c:\Users\arpit\Desktop\Razorpay\Razorpay\wapsi\api\app.py (LANGUAGE_UNSPECIFIED)
+- c:\Users\arpit\Desktop\Razorpay\Razorpay\tests\test_phase3_1b_zero_delete_opt_out.py (LANGUAGE_UNSPECIFIED)
+</ADDITIONAL_METADATA>

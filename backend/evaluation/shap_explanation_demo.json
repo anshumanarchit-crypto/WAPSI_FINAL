@@ -1,0 +1,240 @@
+{
+  "generated_at": "2026-08-30T13:14:28.445593+00:00",
+  "primary_demo_case": {
+    "input_case": {
+      "case_id": "case_razorpay_demo_8821",
+      "domain": "ecommerce",
+      "amount": 3499.0,
+      "decline_reason": "user_cancelled_checkout",
+      "attempts_used": 1,
+      "account_age_days": 180,
+      "previous_failures": 0,
+      "previous_recoveries": 4,
+      "prior_recovery_rate": 0.85,
+      "day_of_week": 2,
+      "hour": 15,
+      "issuer": "HDFC",
+      "bin_bucket": "platinum",
+      "fatigue_score": 0.1
+    },
+    "explanation": {
+      "action": "whatsapp_nudge",
+      "predicted_uplift": 0.2524,
+      "base_uplift": 1.3936,
+      "top_reasons": [
+        {
+          "feature": "prior_recovery_rate",
+          "value": 0.85,
+          "impact": -0.7008
+        },
+        {
+          "feature": "decline_reason",
+          "value": "user_cancelled_checkout",
+          "impact": 0.5107
+        },
+        {
+          "feature": "fatigue_score",
+          "value": 0.1,
+          "impact": -0.271
+        },
+        {
+          "feature": "hour",
+          "value": 15,
+          "impact": 0.2396
+        },
+        {
+          "feature": "previous_failures",
+          "value": 0,
+          "impact": 0.1269
+        },
+        {
+          "feature": "amount",
+          "value": 3499.0,
+          "impact": -0.1145
+        }
+      ],
+      "top_positive_features": [
+        {
+          "feature": "decline_reason",
+          "value": "user_cancelled_checkout",
+          "impact": 0.5107
+        },
+        {
+          "feature": "hour",
+          "value": 15,
+          "impact": 0.2396
+        },
+        {
+          "feature": "previous_failures",
+          "value": 0,
+          "impact": 0.1269
+        },
+        {
+          "feature": "issuer",
+          "value": "HDFC",
+          "impact": 0.0837
+        },
+        {
+          "feature": "domain",
+          "value": "ecommerce",
+          "impact": 0.051
+        }
+      ],
+      "top_negative_features": [
+        {
+          "feature": "prior_recovery_rate",
+          "value": 0.85,
+          "impact": -0.7008
+        },
+        {
+          "feature": "fatigue_score",
+          "value": 0.1,
+          "impact": -0.271
+        },
+        {
+          "feature": "amount",
+          "value": 3499.0,
+          "impact": -0.1145
+        },
+        {
+          "feature": "previous_recoveries",
+          "value": 4,
+          "impact": -0.1011
+        },
+        {
+          "feature": "attempts_used",
+          "value": 1,
+          "impact": -0.0776
+        },
+        {
+          "feature": "account_age_days",
+          "value": 180,
+          "impact": -0.0544
+        }
+      ],
+      "rationale": "WAPSI recommended Whatsapp Nudge (+25.2% incremental recovery uplift). Primary positive drivers: decline_reason (user_cancelled_checkout: +0.51 lift), hour (15: +0.24 lift). Main mitigating factor: prior_recovery_rate (0.85: -0.70 drag)."
+    },
+    "plot_path": "evaluation\\plots\\shap_plots\\demo_case_shap.png"
+  },
+  "secondary_technical_case": {
+    "input_case": {
+      "case_id": "case_razorpay_demo_9942",
+      "domain": "travel",
+      "amount": 12500.0,
+      "decline_reason": "technical_gateway_error",
+      "attempts_used": 1,
+      "account_age_days": 240,
+      "previous_failures": 1,
+      "previous_recoveries": 3,
+      "prior_recovery_rate": 0.75,
+      "day_of_week": 4,
+      "hour": 11,
+      "issuer": "ICICI",
+      "bin_bucket": "corporate",
+      "fatigue_score": 0.05
+    },
+    "explanation": {
+      "action": "retry_only",
+      "predicted_uplift": 0.3658,
+      "base_uplift": 1.6271,
+      "top_reasons": [
+        {
+          "feature": "prior_recovery_rate",
+          "value": 0.75,
+          "impact": -0.8137
+        },
+        {
+          "feature": "decline_reason",
+          "value": "technical_gateway_error",
+          "impact": 0.7523
+        },
+        {
+          "feature": "domain",
+          "value": "travel",
+          "impact": 0.4761
+        },
+        {
+          "feature": "account_age_days",
+          "value": 240,
+          "impact": -0.2582
+        },
+        {
+          "feature": "fatigue_score",
+          "value": 0.05,
+          "impact": -0.2497
+        },
+        {
+          "feature": "day_of_week",
+          "value": 4,
+          "impact": 0.1863
+        }
+      ],
+      "top_positive_features": [
+        {
+          "feature": "decline_reason",
+          "value": "technical_gateway_error",
+          "impact": 0.7523
+        },
+        {
+          "feature": "domain",
+          "value": "travel",
+          "impact": 0.4761
+        },
+        {
+          "feature": "day_of_week",
+          "value": 4,
+          "impact": 0.1863
+        },
+        {
+          "feature": "previous_failures",
+          "value": 1,
+          "impact": 0.0727
+        },
+        {
+          "feature": "hour",
+          "value": 11,
+          "impact": 0.0215
+        },
+        {
+          "feature": "bin_bucket",
+          "value": "corporate",
+          "impact": 0.0068
+        }
+      ],
+      "top_negative_features": [
+        {
+          "feature": "prior_recovery_rate",
+          "value": 0.75,
+          "impact": -0.8137
+        },
+        {
+          "feature": "account_age_days",
+          "value": 240,
+          "impact": -0.2582
+        },
+        {
+          "feature": "fatigue_score",
+          "value": 0.05,
+          "impact": -0.2497
+        },
+        {
+          "feature": "attempts_used",
+          "value": 1,
+          "impact": -0.0633
+        },
+        {
+          "feature": "issuer",
+          "value": "ICICI",
+          "impact": -0.06
+        },
+        {
+          "feature": "amount",
+          "value": 12500.0,
+          "impact": -0.0337
+        }
+      ],
+      "rationale": "WAPSI recommended Retry Only (+36.6% incremental recovery uplift). Primary positive drivers: decline_reason (technical_gateway_error: +0.75 lift), domain (travel: +0.48 lift). Main mitigating factor: prior_recovery_rate (0.75: -0.81 drag)."
+    },
+    "plot_path": "evaluation\\plots\\shap_plots\\demo_technical_retry_shap.png"
+  }
+}

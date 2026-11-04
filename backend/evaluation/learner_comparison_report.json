@@ -1,0 +1,275 @@
+{
+  "benchmark_timestamp": "2026-08-30T13:05:09.559614+00:00",
+  "train_rows": 35000,
+  "test_rows": 7500,
+  "qini_comparison": {
+    "t_learner": {
+      "retry_only": 0.191355,
+      "whatsapp_nudge": 0.081569,
+      "voice_call": 0.116491,
+      "email": 0.103634,
+      "incentive_link": 0.098846
+    },
+    "x_learner": {
+      "retry_only": 0.192814,
+      "whatsapp_nudge": 0.082204,
+      "voice_call": 0.115249,
+      "email": 0.108454,
+      "incentive_link": 0.104163
+    }
+  },
+  "auuc_comparison": {
+    "t_learner": {
+      "retry_only": 0.174276,
+      "whatsapp_nudge": 0.109902,
+      "voice_call": 0.156808,
+      "email": 0.101064,
+      "incentive_link": 0.137816
+    },
+    "x_learner": {
+      "retry_only": 0.172063,
+      "whatsapp_nudge": 0.112008,
+      "voice_call": 0.15015,
+      "email": 0.116466,
+      "incentive_link": 0.138882
+    },
+    "oracle": {
+      "retry_only": 0.199904,
+      "whatsapp_nudge": 0.143166,
+      "voice_call": 0.165011,
+      "email": 0.123278,
+      "incentive_link": 0.15593
+    }
+  },
+  "cate_correlation": {
+    "per_action": {
+      "retry_only": {
+        "t_learner_spearman_rho": 0.787,
+        "x_learner_spearman_rho": 0.8213,
+        "t_learner_pearson_r": 0.9244,
+        "x_learner_pearson_r": 0.95,
+        "delta_spearman_rho": 0.0343
+      },
+      "whatsapp_nudge": {
+        "t_learner_spearman_rho": 0.7862,
+        "x_learner_spearman_rho": 0.8032,
+        "t_learner_pearson_r": 0.8243,
+        "x_learner_pearson_r": 0.8322,
+        "delta_spearman_rho": 0.017
+      },
+      "voice_call": {
+        "t_learner_spearman_rho": 0.8302,
+        "x_learner_spearman_rho": 0.8318,
+        "t_learner_pearson_r": 0.8701,
+        "x_learner_pearson_r": 0.875,
+        "delta_spearman_rho": 0.0016
+      },
+      "email": {
+        "t_learner_spearman_rho": 0.7969,
+        "x_learner_spearman_rho": 0.8633,
+        "t_learner_pearson_r": 0.8155,
+        "x_learner_pearson_r": 0.8892,
+        "delta_spearman_rho": 0.0664
+      },
+      "incentive_link": {
+        "t_learner_spearman_rho": 0.8849,
+        "x_learner_spearman_rho": 0.9317,
+        "t_learner_pearson_r": 0.8799,
+        "x_learner_pearson_r": 0.9334,
+        "delta_spearman_rho": 0.0468
+      }
+    },
+    "average_t_learner_spearman_rho": 0.817,
+    "average_x_learner_spearman_rho": 0.8503,
+    "delta_average_spearman_rho": 0.0332
+  },
+  "overall_routing": {
+    "t_learner_optimal_match_rate": 0.8532,
+    "x_learner_optimal_match_rate": 0.8759,
+    "delta_match_rate": 0.0227,
+    "learner_agreement_rate": 0.9087,
+    "t_learner_overall_qini": 0.022505,
+    "x_learner_overall_qini": 0.020654,
+    "delta_overall_qini": -0.001851
+  },
+  "domain_segment_qini": {
+    "b2b_saas": {
+      "n": 1040,
+      "t_learner_qini": 0.0334,
+      "x_learner_qini": 0.0242,
+      "delta_qini": -0.0092
+    },
+    "ecommerce": {
+      "n": 2434,
+      "t_learner_qini": 0.0207,
+      "x_learner_qini": 0.0194,
+      "delta_qini": -0.0013
+    },
+    "education": {
+      "n": 755,
+      "t_learner_qini": -0.0016,
+      "x_learner_qini": 0.0071,
+      "delta_qini": 0.0087
+    },
+    "food_delivery": {
+      "n": 786,
+      "t_learner_qini": 0.0188,
+      "x_learner_qini": 0.0177,
+      "delta_qini": -0.0011
+    },
+    "gaming": {
+      "n": 872,
+      "t_learner_qini": 0.0157,
+      "x_learner_qini": 0.0236,
+      "delta_qini": 0.0079
+    },
+    "subscription": {
+      "n": 723,
+      "t_learner_qini": 0.0232,
+      "x_learner_qini": 0.0179,
+      "delta_qini": -0.0053
+    },
+    "travel": {
+      "n": 890,
+      "t_learner_qini": 0.0392,
+      "x_learner_qini": 0.0268,
+      "delta_qini": -0.0124
+    }
+  },
+  "business_kpis": {
+    "t_learner": {
+      "overall": {
+        "total_cases": 7500,
+        "total_contacted": 6507,
+        "total_amount_recovered_inr": 9168388.03,
+        "amount_recovered_from_contacted_inr": 8745839.05,
+        "rs_per_contact": 1344.07,
+        "overall_recovery_rate": 0.252
+      },
+      "per_treatment": {
+        "retry_only": {
+          "n_cases": 1213,
+          "n_recovered": 434,
+          "recovery_rate": 0.3578,
+          "recovery_rate_lift_vs_control": 0.2561,
+          "amount_recovered_inr": 1747312.73,
+          "rs_recovered_per_contact": 1440.49,
+          "rs_recovered_per_fatigue_unit": 3901.2,
+          "attempts_consumed": 1855,
+          "rs_recovered_per_retry_attempt": 941.95
+        },
+        "whatsapp_nudge": {
+          "n_cases": 2073,
+          "n_recovered": 580,
+          "recovery_rate": 0.2798,
+          "recovery_rate_lift_vs_control": 0.1781,
+          "amount_recovered_inr": 1404491.77,
+          "rs_recovered_per_contact": 677.52,
+          "rs_recovered_per_fatigue_unit": 1781.01
+        },
+        "voice_call": {
+          "n_cases": 1289,
+          "n_recovered": 204,
+          "recovery_rate": 0.1583,
+          "recovery_rate_lift_vs_control": 0.0566,
+          "amount_recovered_inr": 2434521.54,
+          "rs_recovered_per_contact": 1888.69,
+          "rs_recovered_per_fatigue_unit": 4872.22
+        },
+        "email": {
+          "n_cases": 1020,
+          "n_recovered": 235,
+          "recovery_rate": 0.2304,
+          "recovery_rate_lift_vs_control": 0.1287,
+          "amount_recovered_inr": 1798913.92,
+          "rs_recovered_per_contact": 1763.64,
+          "rs_recovered_per_fatigue_unit": 4590.04
+        },
+        "incentive_link": {
+          "n_cases": 912,
+          "n_recovered": 336,
+          "recovery_rate": 0.3684,
+          "recovery_rate_lift_vs_control": 0.2667,
+          "amount_recovered_inr": 1360599.09,
+          "rs_recovered_per_contact": 1491.88,
+          "rs_recovered_per_fatigue_unit": 3685.76
+        }
+      },
+      "control_baseline": {
+        "n_cases": 993,
+        "recovery_rate": 0.1017,
+        "amount_recovered_inr": 422548.98
+      }
+    },
+    "x_learner": {
+      "overall": {
+        "total_cases": 7500,
+        "total_contacted": 6507,
+        "total_amount_recovered_inr": 9168388.03,
+        "amount_recovered_from_contacted_inr": 8745839.05,
+        "rs_per_contact": 1344.07,
+        "overall_recovery_rate": 0.252
+      },
+      "per_treatment": {
+        "retry_only": {
+          "n_cases": 1213,
+          "n_recovered": 434,
+          "recovery_rate": 0.3578,
+          "recovery_rate_lift_vs_control": 0.2561,
+          "amount_recovered_inr": 1747312.73,
+          "rs_recovered_per_contact": 1440.49,
+          "rs_recovered_per_fatigue_unit": 3901.2,
+          "attempts_consumed": 1855,
+          "rs_recovered_per_retry_attempt": 941.95
+        },
+        "whatsapp_nudge": {
+          "n_cases": 2073,
+          "n_recovered": 580,
+          "recovery_rate": 0.2798,
+          "recovery_rate_lift_vs_control": 0.1781,
+          "amount_recovered_inr": 1404491.77,
+          "rs_recovered_per_contact": 677.52,
+          "rs_recovered_per_fatigue_unit": 1781.01
+        },
+        "voice_call": {
+          "n_cases": 1289,
+          "n_recovered": 204,
+          "recovery_rate": 0.1583,
+          "recovery_rate_lift_vs_control": 0.0566,
+          "amount_recovered_inr": 2434521.54,
+          "rs_recovered_per_contact": 1888.69,
+          "rs_recovered_per_fatigue_unit": 4872.22
+        },
+        "email": {
+          "n_cases": 1020,
+          "n_recovered": 235,
+          "recovery_rate": 0.2304,
+          "recovery_rate_lift_vs_control": 0.1287,
+          "amount_recovered_inr": 1798913.92,
+          "rs_recovered_per_contact": 1763.64,
+          "rs_recovered_per_fatigue_unit": 4590.04
+        },
+        "incentive_link": {
+          "n_cases": 912,
+          "n_recovered": 336,
+          "recovery_rate": 0.3684,
+          "recovery_rate_lift_vs_control": 0.2667,
+          "amount_recovered_inr": 1360599.09,
+          "rs_recovered_per_contact": 1491.88,
+          "rs_recovered_per_fatigue_unit": 3685.76
+        }
+      },
+      "control_baseline": {
+        "n_cases": 993,
+        "recovery_rate": 0.1017,
+        "amount_recovered_inr": 422548.98
+      }
+    }
+  },
+  "plot_paths": {
+    "qini_comparison": "evaluation\\plots\\learner_comparison\\qini_comparison_t_vs_x.png",
+    "auuc_comparison": "evaluation\\plots\\learner_comparison\\auuc_comparison_t_vs_x.png",
+    "cate_correlation": "evaluation\\plots\\learner_comparison\\cate_correlation_comparison.png",
+    "domain_qini": "evaluation\\plots\\learner_comparison\\domain_qini_comparison.png"
+  }
+}

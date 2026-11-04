@@ -1,0 +1,56 @@
+================================================================================
+WAPSI CONFORMAL CALIBRATION & STATISTICAL GATING AUDIT
+Razorpay AI Buildathon 2026 | Track 3: Causal Recovery Router
+Generated: 2026-08-30 13:29:14 UTC
+================================================================================
+
+[1] CONFORMAL METHODOLOGY & DATA ISOLATION
+  Calibration Split : Held-out D_calib (25% of training set, N = 8,750)
+  Test Audit Split  : Strictly held-out D_test (N = 7,500)
+  Target Coverage   : 90.0% (alpha = 0.10)
+  Realized Coverage : 89.6%
+  Validity Status   : PASSED (Within exchangeability error margin)
+
+[2] PER-ACTION CONFORMAL QUANTILE RADII & COVERAGE
+  - no_action          | Radius q: 0.0760 | Width: 0.1520 | Realized Coverage: 93.7% (Gap: +3.7%)
+  - retry_only         | Radius q: 0.1158 | Width: 0.2316 | Realized Coverage: 83.9% (Gap: -6.1%)
+  - whatsapp_nudge     | Radius q: 0.1107 | Width: 0.2214 | Realized Coverage: 92.2% (Gap: +2.2%)
+  - voice_call         | Radius q: 0.0801 | Width: 0.1602 | Realized Coverage: 84.4% (Gap: -5.6%)
+  - email              | Radius q: 0.1032 | Width: 0.2064 | Realized Coverage: 95.4% (Gap: +5.4%)
+  - incentive_link     | Radius q: 0.1079 | Width: 0.2158 | Realized Coverage: 87.6% (Gap: -2.4%)
+
+[3] STATISTICAL DECISION GATING RESULTS (7,500 CASES)
+  Auto-Action Authorized   :  7288 cases (97.2%) -> Lower bound strictly positive
+  Human Review Escalated   :   212 cases (2.8%) -> Epistemic uncertainty / borderline
+
+[4] SAMPLE CASE CONFORMAL EVALUATION AUDIT
+
+  Case ID: case_0498c9204af5 (food_delivery | bank_downtime)
+    Action           : retry_only (Estimated Uplift: +56.3%)
+    Conformal Bounds : [46.67%, 65.85%]
+    Eligible for Auto: True (Confidence Index: 0.85)
+    Reason           : Statistically calibrated: 90% conformal interval [46.67%, 65.85%] is strictly positive (lower bound >= 2.0%). Autonomous execution authorized.
+
+  Case ID: case_014f6bc18375 (ecommerce | upi_pin_timeout)
+    Action           : whatsapp_nudge (Estimated Uplift: +41.9%)
+    Conformal Bounds : [32.61%, 51.28%]
+    Eligible for Auto: True (Confidence Index: 0.82)
+    Reason           : Statistically calibrated: 90% conformal interval [32.61%, 51.28%] is strictly positive (lower bound >= 2.0%). Autonomous execution authorized.
+
+  Case ID: case_04501d7651b4 (ecommerce | insufficient_funds)
+    Action           : incentive_link (Estimated Uplift: +59.4%)
+    Conformal Bounds : [50.21%, 68.60%]
+    Eligible for Auto: True (Confidence Index: 0.87)
+    Reason           : Statistically calibrated: 90% conformal interval [50.21%, 68.60%] is strictly positive (lower bound >= 2.0%). Autonomous execution authorized.
+
+  Case ID: case_05a16fee0cd3 (subscription | insufficient_funds)
+    Action           : incentive_link (Estimated Uplift: +25.1%)
+    Conformal Bounds : [15.90%, 34.29%]
+    Eligible for Auto: True (Confidence Index: 0.73)
+    Reason           : Statistically calibrated: 90% conformal interval [15.90%, 34.29%] is strictly positive (lower bound >= 2.0%). Autonomous execution authorized.
+
+[5] HONEST AUDIT DISCLOSURE & GUARANTEES
+  Nominal target: 90.0%. Empirical realized: 89.6%. Finite-sample exchangeability guarantees validity on held-out distributions.
+  Policy Guardrail: Conformal Gate provides safety confidence; Policy Engine retains execution authority.
+
+================================================================================

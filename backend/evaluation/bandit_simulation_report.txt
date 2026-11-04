@@ -1,0 +1,31 @@
+================================================================================
+WAPSI CONTEXTUAL BANDIT (LINEAR THOMPSON SAMPLING) BENCHMARK
+Razorpay AI Buildathon 2026 | Track 3: Causal Decision Engine
+Generated: 2026-08-30 13:23:36 UTC
+================================================================================
+
+[1] BANDIT LEARNING PARADIGM
+  Algorithm         : Linear Thompson Sampling (LinTS) with Bayesian Ridge Regression
+  Reward Function   : Net Business Value = Recovered Amount - Contact Costs - Fatigue - Attempt Penalty
+  Exploration Policy: Posterior Sampling theta_tilde ~ N(B_a^-1 f_a, v^2 B_a^-1)
+
+[2] SIMULATION PERFORMANCE RESULTS (2,500 RECOVERY EVENTS)
+  WAPSI LinTS Net Revenue    : Rs. 931,210.17
+  Random Policy Net Revenue  : Rs. 740,567.19
+  Oracle Optimal Net Revenue : Rs. 3,132,847.87
+  Incremental Revenue Gain   : +Rs. 190,642.98 (+25.7% over random)
+  Regret Reduction vs Random : 7.97% lower cumulative regret
+
+[3] ACTION ALLOCATION DISTRIBUTION
+  - no_action          :  445 selections (17.8%)
+  - retry_only         :  370 selections (14.8%)
+  - whatsapp_nudge     :  352 selections (14.1%)
+  - voice_call         :  609 selections (24.4%)
+  - email              :  439 selections (17.6%)
+  - incentive_link     :  285 selections (11.4%)
+
+[4] POLICY COMPLIANCE & SAFETY
+  - Bandit respects Action Eligibility constraints and TRAI DND windows.
+  - Policy Engine acts as supreme gatekeeper before any action execution.
+
+================================================================================

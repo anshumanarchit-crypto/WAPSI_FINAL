@@ -1,0 +1,58 @@
+================================================================================
+WAPSI NETWORK PRIOR & EMPIRICAL BAYES SHRINKAGE DEMO
+Razorpay AI Buildathon 2026 | Track 3: Causal Recovery Router
+Generated: 2026-08-30 13:20:21 UTC
+================================================================================
+
+[1] DESIGN & ARCHITECTURE STATEMENT
+  Concept : Transparent empirical Bayes partial pooling (w(n) * merchant + (1-w(n)) * network).
+  Purpose : Eliminates cold-start vulnerability for new merchants using Razorpay collective intelligence.
+  Privacy : Aggregation uses strictly anonymized segment buckets; NO customer PII or raw histories shared.
+  Design  : Hackathon-grade deterministic partial pooling approximation of hierarchical Bayesian model.
+
+[2] GLOBAL NETWORK UPLIFT PRIORS
+  - retry_only         -> Expected Network Uplift: +26.2%
+  - whatsapp_nudge     -> Expected Network Uplift: +17.0%
+  - voice_call         -> Expected Network Uplift: +5.0%
+  - email              -> Expected Network Uplift: +12.7%
+  - incentive_link     -> Expected Network Uplift: +31.0%
+
+[3] DEMONSTRATION ACROSS MERCHANT SAMPLE SIZE REGIMES
+
+--- COLD-START EARLY STARTUP (10 CASES) ---
+  Merchant ID      : merch_cold_start_10
+  Sample Size (n)  : 10 cases
+  Merchant Weight  : 9.1% (Network Prior Weight: 90.9%)
+
+  Action Uplift Breakdown:
+    - retry_only       | Net Prior: +0.05 | Merch Est: +0.05 | COMBINED: +0.0522 (w=0.09)
+    - whatsapp_nudge   | Net Prior: +0.36 | Merch Est: +0.02 | COMBINED: +0.3329 (w=0.09)
+    - voice_call       | Net Prior: +0.10 | Merch Est: -0.05 | COMBINED: +0.0837 (w=0.09)
+    - email            | Net Prior: +0.09 | Merch Est: +0.00 | COMBINED: +0.0773 (w=0.09)
+    - incentive_link   | Net Prior: +0.59 | Merch Est: +0.10 | COMBINED: +0.5488 (w=0.09)
+
+--- MID-STAGE MERCHANT AT HALF-LIFE (100 CASES) ---
+  Merchant ID      : merch_mid_growth_100
+  Sample Size (n)  : 100 cases
+  Merchant Weight  : 50.0% (Network Prior Weight: 50.0%)
+
+  Action Uplift Breakdown:
+    - retry_only       | Net Prior: -0.00 | Merch Est: +0.18 | COMBINED: +0.0885 (w=0.50)
+    - whatsapp_nudge   | Net Prior: +0.08 | Merch Est: +0.22 | COMBINED: +0.1507 (w=0.50)
+    - voice_call       | Net Prior: +0.00 | Merch Est: +0.08 | COMBINED: +0.0403 (w=0.50)
+    - email            | Net Prior: +0.17 | Merch Est: +0.04 | COMBINED: +0.1027 (w=0.50)
+    - incentive_link   | Net Prior: +0.35 | Merch Est: +0.15 | COMBINED: +0.2523 (w=0.50)
+
+--- HIGH-VOLUME MATURE ENTERPRISE (10,000 CASES) ---
+  Merchant ID      : merch_enterprise_10000
+  Sample Size (n)  : 10000 cases
+  Merchant Weight  : 99.0% (Network Prior Weight: 1.0%)
+
+  Action Uplift Breakdown:
+    - retry_only       | Net Prior: +0.42 | Merch Est: +0.42 | COMBINED: +0.4200 (w=0.99)
+    - whatsapp_nudge   | Net Prior: +0.07 | Merch Est: +0.29 | COMBINED: +0.2878 (w=0.99)
+    - voice_call       | Net Prior: -0.10 | Merch Est: +0.06 | COMBINED: +0.0584 (w=0.99)
+    - email            | Net Prior: +0.02 | Merch Est: +0.03 | COMBINED: +0.0299 (w=0.99)
+    - incentive_link   | Net Prior: +0.21 | Merch Est: +0.21 | COMBINED: +0.2100 (w=0.99)
+
+================================================================================

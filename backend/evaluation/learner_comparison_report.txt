@@ -1,0 +1,83 @@
+================================================================================
+WAPSI CAUSAL TIER BENCHMARK: T-LEARNER vs. X-LEARNER
+Razorpay AI Buildathon 2026 | Track 3: Causal Recovery Decision Engine
+Generated: 2026-08-30 13:05:09 UTC
+================================================================================
+
+[1] BENCHMARK SETUP
+  Training observations : 35,000 rows
+  Test observations     : 7,500 rows
+  Strict Data Isolation : Verified (Zero ground-truth leakage into fitting)
+  T-Learner             : Separate response models mu_a(x) - mu_0(x)
+  X-Learner             : Crossover residual imputation + propensity weighting
+
+[2] QINI COEFFICIENT COMPARISON (Per Treatment Arm)
+  Treatment            | T-Learner    | X-Learner    | Delta (X - T)
+  --------------------------------------------------------------
+  email                | +0.1036      | +0.1085      | +0.0048
+  incentive_link       | +0.0988      | +0.1042      | +0.0053
+  retry_only           | +0.1914      | +0.1928      | +0.0015
+  voice_call           | +0.1165      | +0.1152      | -0.0012
+  whatsapp_nudge       | +0.0816      | +0.0822      | +0.0006
+
+[3] AUUC COMPARISON (vs. Random Baseline & Oracle)
+  Treatment            | T-Learner    | X-Learner    | Oracle      
+  --------------------------------------------------------------
+  email                | +0.1011      | +0.1165      | +0.1233
+  incentive_link       | +0.1378      | +0.1389      | +0.1559
+  retry_only           | +0.1743      | +0.1721      | +0.1999
+  voice_call           | +0.1568      | +0.1502      | +0.1650
+  whatsapp_nudge       | +0.1099      | +0.1120      | +0.1432
+
+[4] CATE CORRELATION WITH ORACLE GROUND TRUTH (Spearman rho)
+  Treatment            | T-Learner rho  | X-Learner rho  | Delta rho 
+  ----------------------------------------------------------------
+  email                | 0.7969         | 0.8633         | +0.0664
+  incentive_link       | 0.8849         | 0.9317         | +0.0468
+  retry_only           | 0.7870         | 0.8213         | +0.0343
+  voice_call           | 0.8302         | 0.8318         | +0.0016
+  whatsapp_nudge       | 0.7862         | 0.8032         | +0.0170
+  Mean Spearman rho across all treatments:
+    T-Learner : 0.8170
+    X-Learner : 0.8503
+    Delta     : +0.0332
+
+[5] MULTI-ACTION RECOVERY ROUTING PERFORMANCE
+  Optimal Treatment Match Rate (vs Oracle Winner):
+    T-Learner match rate : 0.8532
+    X-Learner match rate : 0.8759
+    Delta match rate     : +0.0227
+  Learner Decision Agreement : 90.9%
+  Overall Best-Action Qini:
+    T-Learner overall Qini : 0.022505
+    X-Learner overall Qini : 0.020654
+
+[6] DOMAIN-LEVEL QINI BREAKDOWN
+  Domain             | T-Learner    | X-Learner    | Delta     
+  --------------------------------------------------------
+  b2b_saas           | +0.0334      | +0.0242      | -0.0092
+  ecommerce          | +0.0207      | +0.0194      | -0.0013
+  education          | -0.0016      | +0.0071      | +0.0087
+  food_delivery      | +0.0188      | +0.0177      | -0.0011
+  gaming             | +0.0157      | +0.0236      | +0.0079
+  subscription       | +0.0232      | +0.0179      | -0.0053
+  travel             | +0.0392      | +0.0268      | -0.0124
+
+================================================================================
+ANALYTICAL INTERPRETATION & STATISTICAL AUDIT
+================================================================================
+
+Key Findings:
+1. CATE Estimation Fidelity: X-Learner demonstrates strong rank fidelity (rho=0.850 vs T-Learner rho=0.817). The 2-stage residual imputation successfully refines local treatment effect surfaces.
+2. Routing Accuracy: T-Learner optimal action match rate is 85.3%, while X-Learner match rate is 87.6%. Agreement between models is 90.9%.
+
+3. Theoretical Context (Künzel et al., 2019):
+   - X-Learner is theoretically optimal when treatment and control group sizes are heavily unbalanced,
+     as the crossover residual step uses the larger group's well-estimated response model to impute
+     unobserved counterfactuals for the smaller group.
+   - In balanced randomized exploration settings with rich feature interactions, both T-Learner and
+     X-Learner perform effectively.
+   - X-Learner provides enhanced resilience in observational data scenarios where certain channels
+     (e.g., voice calls or incentive links) have lower assignment probabilities.
+
+================================================================================

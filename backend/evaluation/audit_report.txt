@@ -1,0 +1,58 @@
+================================================================================
+WAPSI SYNTHETIC RECOVERY ENVIRONMENT — STATISTICAL AUDIT REPORT
+================================================================================
+
+Audit Evaluation Scope: 50,000 Recovery Cases
+Overall Audit Status: PASSED [OK]
+
+================================================================================
+10-POINT CAUSAL INFERENCE AUDIT CHECKLIST:
+================================================================================
+Q1: Are treatment groups sufficiently represented? -> YES [PASSED]
+    - no_action           :   6,583 ( 13.2%) | Obs Rate: 10.59%
+    - retry_only          :   8,374 ( 16.8%) | Obs Rate: 36.78%
+    - whatsapp_nudge      :  13,280 ( 26.6%) | Obs Rate: 27.61%
+    - voice_call          :   8,786 ( 17.6%) | Obs Rate: 15.57%
+    - email               :   6,796 ( 13.6%) | Obs Rate: 23.31%
+    - incentive_link      :   6,181 ( 12.4%) | Obs Rate: 40.53%
+
+Q2: Are treatment effects actually heterogeneous? -> YES [PASSED]
+    - retry_only          : True ATE = +13.66% | Std = 23.09% | IQR = 13.65% | Range: [ -5.0%, +64.0%]
+    - whatsapp_nudge      : True ATE = +13.83% | Std = 15.56% | IQR = 17.84% | Range: [-13.2%, +77.5%]
+    - voice_call          : True ATE = +1.29% | Std = 19.33% | IQR =  8.34% | Range: [-50.0%, +90.0%]
+    - email               : True ATE = +10.70% | Std = 14.40% | IQR = 16.88% | Range: [-10.0%, +54.0%]
+    - incentive_link      : True ATE = +27.08% | Std = 22.13% | IQR = 38.42% | Range: [-22.0%, +70.0%]
+
+Q3: Does WhatsApp outperform no_action for some cases but not others? -> YES [PASSED]
+    - Cases with tau > +20%: 25.5%
+    - Cases with tau < +5%:  37.5%
+    - UPI Timeout mean tau:  +23.8% vs Bank Downtime tau: +1.5%
+
+Q4: Does retry outperform WhatsApp for meaningful segments? -> YES [PASSED]
+    - On technical gateway errors: Retry beats WhatsApp in 100.0% of cases (Mean tau: +46.8% vs +8.1%)
+    - On UPI Pin Timeouts: WhatsApp beats Retry in 96.7% of cases
+
+Q5: Does fatigue reduce intervention response? -> YES [PASSED]
+    - WhatsApp uplift decays by 54.1% from low to extreme fatigue
+
+Q6: Does prior recovery history influence outcomes? -> YES [PASSED]
+    - Correlation of prior_recovery_rate with baseline p0: 0.537
+
+Q7: Do issuer/BIN buckets affect timing? -> YES [PASSED]
+    - AXIS: Mean latency = 2.74h
+    - CITI: Mean latency = 3.36h
+    - HDFC: Mean latency = 2.96h
+    - ICICI: Mean latency = 2.78h
+
+Q8: Are there any accidental leakage features? -> NO [PASSED]
+    - Max feature correlation: {'fatigue_score': 0.1322}
+    - Baseline classification ROC-AUC: 0.790 (Difficulty: OPTIMAL_LEARNABLE)
+
+Q9: Is any treatment unrealistically dominant everywhere? -> NO [PASSED]
+    - Highest single action oracle share: 45.8%
+
+Q10: Does dataset satisfy WAPSI Core Thesis Quadrants? -> YES [PASSED]
+    - Case A (Organic Self-Curers: High Base, Low Uplift): 4,163 cases (8.3%)
+    - Case B (Causal AI Targets: Low Base, High Uplift):    33,800 cases (67.6%)
+
+================================================================================

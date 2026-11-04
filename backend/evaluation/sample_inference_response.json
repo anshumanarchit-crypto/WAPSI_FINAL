@@ -1,0 +1,207 @@
+{
+  "case_id": "case_pay_99812",
+  "recommended_action": "whatsapp_nudge",
+  "uplift": 0.3885,
+  "action_scores": {
+    "retry_only": 0.143,
+    "whatsapp_nudge": 0.3885,
+    "voice_call": 0.1244,
+    "email": 0.0973,
+    "incentive_link": 0.1409
+  },
+  "timing": {
+    "recommended_window": "0-24h",
+    "hazard_by_window": {
+      "0-24h": 0.9855,
+      "24-48h": 0.0076,
+      "48-72h": 0.007,
+      "72h+": 0.0
+    }
+  },
+  "confidence": 0.8063,
+  "explanation": {
+    "top_reasons": [
+      {
+        "feature": "decline_reason",
+        "value": "upi_pin_timeout",
+        "impact": 0.6275
+      },
+      {
+        "feature": "prior_recovery_rate",
+        "value": 0.82,
+        "impact": -0.4435
+      },
+      {
+        "feature": "account_age_days",
+        "value": 0.0,
+        "impact": 0.3949
+      },
+      {
+        "feature": "fatigue_score",
+        "value": 0.08,
+        "impact": -0.2924
+      },
+      {
+        "feature": "day_of_week",
+        "value": 0.0,
+        "impact": 0.1573
+      }
+    ],
+    "top_positive_features": [
+      {
+        "feature": "decline_reason",
+        "value": "upi_pin_timeout",
+        "impact": 0.6275
+      },
+      {
+        "feature": "account_age_days",
+        "value": 0.0,
+        "impact": 0.3949
+      },
+      {
+        "feature": "day_of_week",
+        "value": 0.0,
+        "impact": 0.1573
+      },
+      {
+        "feature": "domain",
+        "value": "ecommerce",
+        "impact": 0.0984
+      },
+      {
+        "feature": "hour",
+        "value": 16,
+        "impact": 0.0943
+      }
+    ],
+    "top_negative_features": [
+      {
+        "feature": "prior_recovery_rate",
+        "value": 0.82,
+        "impact": -0.4435
+      },
+      {
+        "feature": "fatigue_score",
+        "value": 0.08,
+        "impact": -0.2924
+      },
+      {
+        "feature": "amount",
+        "value": 3499.0,
+        "impact": -0.1229
+      },
+      {
+        "feature": "bin_bucket",
+        "value": "platinum",
+        "impact": -0.0341
+      },
+      {
+        "feature": "attempts_used",
+        "value": 1,
+        "impact": -0.0334
+      }
+    ]
+  },
+  "precedents": [
+    {
+      "case_id": "case_03f8f08eb4aa",
+      "action": "whatsapp_nudge",
+      "recovered": true,
+      "similarity": 0.642,
+      "time_to_recovery_hours": 0.27,
+      "domain": "ecommerce",
+      "decline_reason": "upi_pin_timeout",
+      "issuer": "HDFC",
+      "amount": 2279.66
+    },
+    {
+      "case_id": "case_034637fa86c1",
+      "action": "whatsapp_nudge",
+      "recovered": true,
+      "similarity": 0.596,
+      "time_to_recovery_hours": 0.15,
+      "domain": "ecommerce",
+      "decline_reason": "upi_pin_timeout",
+      "issuer": "HDFC",
+      "amount": 1742.69
+    },
+    {
+      "case_id": "case_020818705390",
+      "action": "retry_only",
+      "recovered": false,
+      "similarity": 0.593,
+      "time_to_recovery_hours": null,
+      "domain": "ecommerce",
+      "decline_reason": "upi_pin_timeout",
+      "issuer": "HDFC",
+      "amount": 885.38
+    },
+    {
+      "case_id": "case_02b580025874",
+      "action": "no_action",
+      "recovered": false,
+      "similarity": 0.5919,
+      "time_to_recovery_hours": null,
+      "domain": "ecommerce",
+      "decline_reason": "upi_pin_timeout",
+      "issuer": "HDFC",
+      "amount": 5791.76
+    },
+    {
+      "case_id": "case_044809268b11",
+      "action": "no_action",
+      "recovered": true,
+      "similarity": 0.5883,
+      "time_to_recovery_hours": 10.6,
+      "domain": "ecommerce",
+      "decline_reason": "upi_pin_timeout",
+      "issuer": "HDFC",
+      "amount": 2287.73
+    }
+  ],
+  "counter_evidence": false,
+  "network_prior": {
+    "network_uplift": 0.3521,
+    "merchant_uplift": 0.3885,
+    "merchant_observations": 30,
+    "merchant_weight": 0.2308,
+    "combined_uplift": 0.3605
+  },
+  "bandit": {
+    "selected_action": "whatsapp_nudge",
+    "sampled_rewards": {
+      "no_action": 295.2513,
+      "retry_only": -157.1511,
+      "whatsapp_nudge": 511.6326,
+      "voice_call": -468.145,
+      "email": -4202.2612,
+      "incentive_link": -451.5363
+    },
+    "expected_rewards": {
+      "no_action": 263.0353,
+      "retry_only": -324.7146,
+      "whatsapp_nudge": 453.4119,
+      "voice_call": -426.2237,
+      "email": -4201.2545,
+      "incentive_link": -473.7831
+    }
+  },
+  "policy_inputs": {
+    "dnd_active": false,
+    "frequency_capped": false,
+    "conformal_gate": {
+      "eligible_for_auto_action": true,
+      "confidence": 0.8063,
+      "calibration_status": "CALIBRATED_NOMINAL_90",
+      "action": "whatsapp_nudge",
+      "predicted_uplift": 0.3885,
+      "prediction_interval": [
+        0.2952,
+        0.4819
+      ],
+      "conformal_score": 0.0934,
+      "conformal_threshold": 0.1107,
+      "reason": "Statistically calibrated: 90% conformal interval [29.52%, 48.19%] is strictly positive (lower bound >= 2.0%). Autonomous execution authorized."
+    }
+  }
+}

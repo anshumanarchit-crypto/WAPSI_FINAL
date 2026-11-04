@@ -1,0 +1,147 @@
+{
+  "generated_at": "2026-08-30T13:29:14.012741+00:00",
+  "nominal_confidence_level": 0.9,
+  "calibration_sample_size": 8750,
+  "test_sample_size": 7500,
+  "overall_empirical_coverage": 0.8959,
+  "coverage_audit": {
+    "target_nominal_coverage": 0.9,
+    "overall_empirical_coverage": 0.8959,
+    "total_test_cases_evaluated": 7500,
+    "coverage_guarantee_met": true,
+    "per_action_coverage": {
+      "no_action": {
+        "test_cases": 993,
+        "covered_cases": 930,
+        "empirical_coverage": 0.9366,
+        "target_nominal_coverage": 0.9,
+        "coverage_gap": 0.0366,
+        "conformal_quantile_radius": 0.076,
+        "mean_interval_width": 0.152
+      },
+      "retry_only": {
+        "test_cases": 1213,
+        "covered_cases": 1018,
+        "empirical_coverage": 0.8392,
+        "target_nominal_coverage": 0.9,
+        "coverage_gap": -0.0608,
+        "conformal_quantile_radius": 0.1158,
+        "mean_interval_width": 0.2316
+      },
+      "whatsapp_nudge": {
+        "test_cases": 2073,
+        "covered_cases": 1911,
+        "empirical_coverage": 0.9219,
+        "target_nominal_coverage": 0.9,
+        "coverage_gap": 0.0219,
+        "conformal_quantile_radius": 0.1107,
+        "mean_interval_width": 0.2214
+      },
+      "voice_call": {
+        "test_cases": 1289,
+        "covered_cases": 1088,
+        "empirical_coverage": 0.8441,
+        "target_nominal_coverage": 0.9,
+        "coverage_gap": -0.0559,
+        "conformal_quantile_radius": 0.0801,
+        "mean_interval_width": 0.1602
+      },
+      "email": {
+        "test_cases": 1020,
+        "covered_cases": 973,
+        "empirical_coverage": 0.9539,
+        "target_nominal_coverage": 0.9,
+        "coverage_gap": 0.0539,
+        "conformal_quantile_radius": 0.1032,
+        "mean_interval_width": 0.2064
+      },
+      "incentive_link": {
+        "test_cases": 912,
+        "covered_cases": 799,
+        "empirical_coverage": 0.8761,
+        "target_nominal_coverage": 0.9,
+        "coverage_gap": -0.0239,
+        "conformal_quantile_radius": 0.1079,
+        "mean_interval_width": 0.2158
+      }
+    },
+    "audit_disclosure": "Nominal target: 90.0%. Empirical realized: 89.6%. Finite-sample exchangeability guarantees validity on held-out distributions."
+  },
+  "gating_distribution": {
+    "auto_action_eligible_count": 7288,
+    "auto_action_eligible_pct": 97.17,
+    "human_review_escalated_count": 212,
+    "human_review_escalated_pct": 2.83
+  },
+  "sample_case_evaluations": [
+    {
+      "eligible_for_auto_action": true,
+      "confidence": 0.8544,
+      "calibration_status": "CALIBRATED_NOMINAL_90",
+      "action": "retry_only",
+      "predicted_uplift": 0.5626,
+      "prediction_interval": [
+        0.4667,
+        0.6585
+      ],
+      "conformal_score": 0.0959,
+      "conformal_threshold": 0.1158,
+      "reason": "Statistically calibrated: 90% conformal interval [46.67%, 65.85%] is strictly positive (lower bound >= 2.0%). Autonomous execution authorized.",
+      "case_id": "case_0498c9204af5",
+      "domain": "food_delivery",
+      "decline_reason": "bank_downtime"
+    },
+    {
+      "eligible_for_auto_action": true,
+      "confidence": 0.8179,
+      "calibration_status": "CALIBRATED_NOMINAL_90",
+      "action": "whatsapp_nudge",
+      "predicted_uplift": 0.4194,
+      "prediction_interval": [
+        0.3261,
+        0.5128
+      ],
+      "conformal_score": 0.0934,
+      "conformal_threshold": 0.1107,
+      "reason": "Statistically calibrated: 90% conformal interval [32.61%, 51.28%] is strictly positive (lower bound >= 2.0%). Autonomous execution authorized.",
+      "case_id": "case_014f6bc18375",
+      "domain": "ecommerce",
+      "decline_reason": "upi_pin_timeout"
+    },
+    {
+      "eligible_for_auto_action": true,
+      "confidence": 0.866,
+      "calibration_status": "CALIBRATED_NOMINAL_90",
+      "action": "incentive_link",
+      "predicted_uplift": 0.5941,
+      "prediction_interval": [
+        0.5021,
+        0.686
+      ],
+      "conformal_score": 0.092,
+      "conformal_threshold": 0.1079,
+      "reason": "Statistically calibrated: 90% conformal interval [50.21%, 68.60%] is strictly positive (lower bound >= 2.0%). Autonomous execution authorized.",
+      "case_id": "case_04501d7651b4",
+      "domain": "ecommerce",
+      "decline_reason": "insufficient_funds"
+    },
+    {
+      "eligible_for_auto_action": true,
+      "confidence": 0.7319,
+      "calibration_status": "CALIBRATED_NOMINAL_90",
+      "action": "incentive_link",
+      "predicted_uplift": 0.251,
+      "prediction_interval": [
+        0.159,
+        0.3429
+      ],
+      "conformal_score": 0.092,
+      "conformal_threshold": 0.1079,
+      "reason": "Statistically calibrated: 90% conformal interval [15.90%, 34.29%] is strictly positive (lower bound >= 2.0%). Autonomous execution authorized.",
+      "case_id": "case_05a16fee0cd3",
+      "domain": "subscription",
+      "decline_reason": "insufficient_funds"
+    }
+  ],
+  "plot_path": "evaluation\\plots\\conformal_calibration_report.png"
+}
