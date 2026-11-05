@@ -2167,20 +2167,36 @@ async def dispatch_case_whatsapp(
         case.payment_link_url = plink_url
         store.update_case_link(case.case_id, plink_id, plink_url)
 
+    settings = get_settings()
+    target_phone = (
+        payload.get("recipient_phone")
+        or payload.get("customer_phone")
+        or case.customer_phone
+    ) if payload and isinstance(payload, dict) else case.customer_phone
+
+    if (not target_phone or target_phone in ("+919876543210", "919876543210")) and settings.test_recipient_phone:
+        target_phone = settings.test_recipient_phone
+
+    override_token = payload.get("whatsapp_access_token") if payload and isinstance(payload, dict) else None
     template_name = payload.get("template_name") if payload and isinstance(payload, dict) else None
-    wa = WhatsAppClient()
+
+    wa = WhatsAppClient(access_token=override_token) if override_token else WhatsAppClient()
     amount_inr = float(Decimal(case.amount_paise) / Decimal(100))
+    is_live_dispatched = False
+    provider_error = None
+
     try:
         wa_res = wa.send_recovery_reminder(
-            to_phone=case.customer_phone,
+            to_phone=target_phone,
             customer_name=case.customer_name,
             amount_str=f"Rs {amount_inr:,.2f}",
             payment_link=plink_url,
             merchant_name=case.merchant_name,
             template_name=template_name,
         )
+        is_live_dispatched = True
     except WhatsAppError as wa_err:
-        settings = get_settings()
+        provider_error = str(wa_err)
         if settings.razorpay_mode == "test" or settings.app_env in ("development", "test"):
             logger.warning(
                 f"Meta Cloud API rejected outbound dispatch in test mode ({wa_err}); generating synthetic dispatch result."
@@ -2188,7 +2204,7 @@ async def dispatch_case_whatsapp(
             wa_res = WhatsAppDispatchResult(
                 success=True,
                 message_id=f"wamid.test_{uuid.uuid4().hex[:16]}",
-                recipient_phone=case.customer_phone,
+                recipient_phone=target_phone,
                 status="accepted",
                 timestamp=time.time(),
                 raw_response={"synthetic": True, "reason": str(wa_err)},
@@ -2198,6 +2214,7 @@ async def dispatch_case_whatsapp(
 
     store.update_case_whatsapp(case.case_id, wa_res.message_id)
     case.whatsapp_message_id = wa_res.message_id
+    case.customer_phone = target_phone
     case.status = RecoveryState.DISPATCHED
     case.attempts_made += 1
 
@@ -2211,27 +2228,35 @@ async def dispatch_case_whatsapp(
         initial_status=RecoveryState.DISPATCHED,
         payment_link_id=case.payment_link_id,
         whatsapp_message_id=wa_res.message_id,
-        customer_phone=case.customer_phone,
+        customer_phone=target_phone,
     )
 
     engine.timeline.record_event(
         case_id=case.case_id,
         event_type="WHATSAPP_DISPATCHED",
-        description=f"Dispatched WhatsApp reminder with 1-click link (Message ID: {wa_res.message_id}).",
+        description=f"Dispatched WhatsApp reminder with 1-click link (Message ID: {wa_res.message_id}) to {target_phone}.",
         source="WHATSAPP_CLIENT",
         provider_event_id=wa_res.message_id,
         from_state="SCHEDULED",
         to_state="DISPATCHED",
-        metadata={"wamid": wa_res.message_id, "recipient": wa_res.recipient_phone, "payment_link_url": plink_url},
+        metadata={
+            "wamid": wa_res.message_id,
+            "recipient": target_phone,
+            "payment_link_url": plink_url,
+            "is_live_dispatched": is_live_dispatched,
+            "provider_error": provider_error,
+        },
     )
 
     return {
         "case_id": case.case_id,
         "whatsapp_message_id": wa_res.message_id,
-        "recipient_phone": wa_res.recipient_phone,
+        "recipient_phone": target_phone,
         "payment_link_url": plink_url,
         "status": "DISPATCHED",
         "attempts_made": case.attempts_made,
+        "is_live_dispatched": is_live_dispatched,
+        "provider_error": provider_error,
     }
 
 

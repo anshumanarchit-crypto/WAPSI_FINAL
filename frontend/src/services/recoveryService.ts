@@ -95,9 +95,33 @@ export const recoveryService = {
 
   simulateRecovery: async (caseId: string) => {
     try {
-      return await apiClient.post<{ status: string; recoveredAmount: number; audit_hash: string }>(
-        `/recovery/cases/${caseId}/simulate-recovery`
-      );
+      return await apiClient.post<{
+        status: string;
+        case_id: string;
+        caseId: string;
+        amount: number;
+        recoveredAmount: number;
+        action: string;
+        actionLabel: string;
+        recoveredAt: string;
+        banditOnlineUpdated: boolean;
+        audit_hash: string;
+        auditHash: string;
+        beforeStats: {
+          attempts: number;
+          successes: number;
+          responseRate: number;
+          confidence: number;
+        };
+        afterStats: {
+          attempts: number;
+          successes: number;
+          responseRate: number;
+          confidence: number;
+        };
+        posteriorShift: string;
+        nextDecisionImpact: string;
+      }>(`/recovery/cases/${caseId}/simulate-recovery`);
     } catch {
       return null;
     }
@@ -134,7 +158,7 @@ export const recoveryService = {
     }
   },
 
-  dispatchWhatsApp: async (caseId: string, templateName?: string) => {
+  dispatchWhatsApp: async (caseId: string, templateName?: string, recipientPhone?: string, whatsappAccessToken?: string) => {
     try {
       const data = await apiClient.post<{
         case_id: string;
@@ -143,8 +167,12 @@ export const recoveryService = {
         payment_link_url: string;
         status: string;
         attempts_made: number;
+        is_live_dispatched?: boolean;
+        provider_error?: string;
       }>(`/recovery/cases/${caseId}/dispatch-whatsapp`, {
         template_name: templateName,
+        recipient_phone: recipientPhone,
+        whatsapp_access_token: whatsappAccessToken,
       });
       if (data) {
         const cases = useDemoStore.getState().cases;
@@ -152,6 +180,7 @@ export const recoveryService = {
           c.caseId === caseId
             ? {
                 ...c,
+                customerPhone: data.recipient_phone || c.customerPhone,
                 whatsappMessageId: data.whatsapp_message_id,
                 status: (data.status as any) || c.status,
                 paymentLinkUrl: data.payment_link_url || c.paymentLinkUrl,

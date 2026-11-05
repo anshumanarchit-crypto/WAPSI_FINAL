@@ -58,6 +58,10 @@ export const CaseDrawer: React.FC = () => {
   const [isDispatchingWa, setIsDispatchingWa] = useState(false);
   const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [recipientPhone, setRecipientPhone] = useState<string>('+916260055671');
+  const [dispatchErrorDetail, setDispatchErrorDetail] = useState<string | null>(null);
+  const [customToken, setCustomToken] = useState<string>('');
+  const [showTokenInput, setShowTokenInput] = useState<boolean>(false);
 
   // Unconditional hook call according to React Rules of Hooks
   const { data: liveDetail } = useCaseDetail(isCaseDrawerOpen && selectedCaseId ? selectedCaseId : null);
@@ -96,11 +100,24 @@ export const CaseDrawer: React.FC = () => {
   const handleDispatchWhatsApp = async () => {
     setIsDispatchingWa(true);
     setActionSuccessMessage(null);
+    setDispatchErrorDetail(null);
     try {
-      const res = await recoveryService.dispatchWhatsApp(currentCase.caseId);
+      const res = await recoveryService.dispatchWhatsApp(
+        currentCase.caseId,
+        undefined,
+        recipientPhone,
+        customToken.trim() || undefined
+      );
       if (res) {
-        setActionSuccessMessage(`WhatsApp reminder dispatched: ${res.whatsapp_message_id}`);
-        setTimeout(() => setActionSuccessMessage(null), 4000);
+        if (res.is_live_dispatched) {
+          setActionSuccessMessage(`WhatsApp sent LIVE to ${res.recipient_phone}! Message ID: ${res.whatsapp_message_id}`);
+        } else if (res.provider_error) {
+          setActionSuccessMessage(`WhatsApp recorded (ID: ${res.whatsapp_message_id})`);
+          setDispatchErrorDetail(res.provider_error);
+        } else {
+          setActionSuccessMessage(`WhatsApp reminder dispatched: ${res.whatsapp_message_id}`);
+        }
+        setTimeout(() => setActionSuccessMessage(null), 8000);
       }
     } finally {
       setIsDispatchingWa(false);
@@ -572,6 +589,78 @@ export const CaseDrawer: React.FC = () => {
                 <span>{actionSuccessMessage}</span>
               </div>
             )}
+
+            {dispatchErrorDetail && (
+              <div className="p-2.5 rounded-xl border text-[10.5px] bg-amber-500/10 text-amber-300 border-amber-500/20 leading-relaxed space-y-1">
+                <span className="font-bold block">Meta WhatsApp Cloud Status:</span>
+                <p className="font-mono text-[10px] break-all opacity-90">{dispatchErrorDetail}</p>
+                <p className="text-[10px] opacity-80 pt-0.5">
+                  💡 Tip: In Meta Business Suite, assign WhatsApp Account <strong>969727602419694</strong> to System User <strong>WAPSI-WhatsApp-Integration</strong> with Full Control.
+                </p>
+              </div>
+            )}
+
+            {/* Recipient Phone Selector */}
+            <div className={cn(
+              "p-2.5 rounded-xl border flex items-center justify-between gap-2 text-[11px]",
+              isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
+            )}>
+              <span className={isLight ? "text-slate-500 font-medium" : "text-slate-400 font-medium"}>
+                Target WhatsApp:
+              </span>
+              <div className="flex items-center gap-1.5 flex-1 max-w-[220px]">
+                <input
+                  type="text"
+                  value={recipientPhone}
+                  onChange={(e) => setRecipientPhone(e.target.value)}
+                  placeholder="+91..."
+                  className={cn(
+                    "w-full px-2 py-1 rounded-lg text-xs font-mono font-semibold border outline-none text-right",
+                    isLight
+                      ? "bg-white border-slate-300 text-slate-900 focus:border-emerald-500"
+                      : "bg-slate-900 border-slate-700 text-slate-100 focus:border-emerald-500"
+                  )}
+                />
+              </div>
+            </div>
+
+            {/* Optional Meta Access Token Override */}
+            <div className="space-y-1.5 pt-0.5">
+              <button
+                type="button"
+                onClick={() => setShowTokenInput(!showTokenInput)}
+                className="text-[10px] text-indigo-400 hover:text-indigo-300 underline flex items-center gap-1 cursor-pointer"
+              >
+                <span>{showTokenInput ? '− Hide Meta Token Override' : '+ Use Custom / Fresh Meta Developer Token'}</span>
+              </button>
+
+              {showTokenInput && (
+                <div className={cn(
+                  "p-2.5 rounded-xl border space-y-1 text-left",
+                  isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900/90 border-slate-700"
+                )}>
+                  <div className="flex items-center justify-between text-[10.5px]">
+                    <span className={isLight ? "text-slate-600 font-semibold" : "text-slate-300 font-semibold"}>Meta Access Token:</span>
+                    <span className="text-[9.5px] text-slate-500 font-mono">EAAN...</span>
+                  </div>
+                  <input
+                    type="password"
+                    value={customToken}
+                    onChange={(e) => setCustomToken(e.target.value)}
+                    placeholder="Paste 24-hr token from Meta WhatsApp > API Setup"
+                    className={cn(
+                      "w-full px-2 py-1 rounded-lg text-[10.5px] font-mono border outline-none",
+                      isLight
+                        ? "bg-white border-slate-300 text-slate-900 focus:border-indigo-500"
+                        : "bg-slate-950 border-slate-700 text-slate-200 focus:border-indigo-500"
+                    )}
+                  />
+                  <p className="text-[9.5px] text-slate-400 leading-normal">
+                    💡 If your System User lacks asset permissions, you can paste the temporary 24-hr token from Meta App Dashboard &gt; WhatsApp &gt; API Setup.
+                  </p>
+                </div>
+              )}
+            </div>
 
             <div className="grid grid-cols-2 gap-2">
               <Button

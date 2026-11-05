@@ -72,6 +72,7 @@ export interface RecoveryCase {
   customerId: string;
   customerName: string;
   customerHandle: string;
+  customerPhone?: string;
   merchantId: string;
   domain: DomainType;
   amount: number;

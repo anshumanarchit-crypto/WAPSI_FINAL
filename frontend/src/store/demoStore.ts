@@ -536,12 +536,28 @@ export const useDemoStore = create<DemoStoreState>((set, get) => ({
 
   simulateRecovery: async (caseId: string, forceSuccess = true) => {
     const state = get();
-    const tx = state.rawTransactions[caseId] || getHeroTransaction();
     const targetCase = state.cases.find((c) => c.caseId === caseId) || state.cases[0];
 
+    // Build or derive transaction features matching the actual case
+    let tx = state.rawTransactions[caseId];
+    if (!tx && targetCase) {
+      tx = {
+        ...getHeroTransaction(),
+        transaction_id: targetCase.caseId,
+        amount: targetCase.amount,
+        customer_name: targetCase.customerName || 'Customer',
+        customer_handle: targetCase.customerHandle || '@customer',
+        domain: targetCase.domain || 'CHECKOUT',
+        failure_code: targetCase.failureCode || 'UPI_APP_TIMEOUT',
+      };
+    } else if (!tx) {
+      tx = getHeroTransaction();
+    }
+
     // Call real backend endpoint if online
+    let backendRes: any = null;
     try {
-      await recoveryService.simulateRecovery(caseId);
+      backendRes = await recoveryService.simulateRecovery(caseId);
     } catch {}
 
     // Execute genuine closed-loop learning in central decision engine
@@ -552,13 +568,34 @@ export const useDemoStore = create<DemoStoreState>((set, get) => ({
       forceSuccess
     );
 
-    const recoveryAmount = tx.amount;
+    // Bind real case attributes & backend ledger response
+    learningResult.caseId = backendRes?.case_id || targetCase.caseId;
+    learningResult.amount = (backendRes?.amount !== undefined && backendRes?.amount !== null) ? backendRes.amount : targetCase.amount;
+    learningResult.action = backendRes?.action || targetCase.recommendedAction;
+    learningResult.actionLabel = backendRes?.actionLabel || targetCase.recommendedActionLabel;
+    if (backendRes?.audit_hash || backendRes?.auditHash) {
+      learningResult.auditHash = backendRes.audit_hash || backendRes.auditHash;
+    }
+    if (backendRes?.beforeStats) {
+      learningResult.beforeStats = backendRes.beforeStats;
+    }
+    if (backendRes?.afterStats) {
+      learningResult.afterStats = backendRes.afterStats;
+    }
+    if (backendRes?.posteriorShift) {
+      learningResult.posteriorShift = backendRes.posteriorShift;
+    }
+    if (backendRes?.nextDecisionImpact) {
+      learningResult.nextDecisionImpact = backendRes.nextDecisionImpact;
+    }
+
+    const recoveryAmount = targetCase.amount;
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0];
 
     const newAuditEvent: AuditEvent = {
       id: `AUD-${Math.floor(10000 + Math.random() * 90000)}`,
-      caseId,
+      caseId: targetCase.caseId,
       timestamp: timeStr,
       stage: 'EXECUTED',
       title: learningResult.recovered ? 'Payment Successfully Recovered' : 'Payment Recovery Attempt Completed',
