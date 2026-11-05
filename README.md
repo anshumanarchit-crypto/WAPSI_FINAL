@@ -7,7 +7,7 @@
 
 ## 1. What WAPSI Is
 
-**WAPSI** (*WhatsApp & Payment Settlement Intelligence*) is an enterprise-grade AI revenue recovery intelligence platform and autonomous decision router. It is designed specifically for digital commerce, recurring billing, and high-velocity digital payment gateways.
+**WAPSI** (*Weighted Adaptive Payment Strategy Intelligence*) is an enterprise-grade AI revenue recovery intelligence platform and autonomous decision router. It is designed specifically for digital commerce, recurring billing, and high-velocity digital payment gateways.
 
 Rather than relying on blunt heuristic retries or indiscriminate coupon broadcasting, WAPSI uses **causal inference and multi-action uplift modeling** to determine which payment failures should be acted upon, through which communication or payment channel, at what exact hour window, and under what economic and regulatory constraints.
 
