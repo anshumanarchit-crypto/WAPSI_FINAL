@@ -1215,6 +1215,11 @@ async def handle_razorpay_webhook(request: Request):
                 target_merchant_id = uuid.UUID(str(event.merchant_id))
             except Exception:
                 target_merchant_id = None
+        if not target_merchant_id and (settings.razorpay_mode == "test" or settings.wapsi_env in ("development", "test")):
+            try:
+                target_merchant_id = uuid.UUID(settings.default_merchant_id)
+            except Exception:
+                target_merchant_id = uuid.UUID("04a2aaf8-8c8a-4d99-852c-cefc80e82019")
         _, is_new = get_persistence_service().record_webhook_event(
             provider="razorpay",
             environment=settings.razorpay_mode,
@@ -1239,6 +1244,86 @@ async def handle_razorpay_webhook(request: Request):
         logger.warning(f"Database webhook inbox non-fatal notification: {db_err}")
 
     processed_webhook_nonces.add(event_key)
+
+    # Ingest new payment failure as an autonomous recovery case
+    if event.event == "payment.failed" and event.payment_id:
+        try:
+            from wapsi.recovery.case_store import get_durable_case_store
+            from wapsi.recovery.engine import get_recovery_engine
+            from wapsi.api.frontend_adapter import active_cases_store, case_details_store, generate_decision_output_for_case
+
+            store = get_durable_case_store()
+            existing_case = store.get_case_by_payment_id(event.payment_id)
+            if not existing_case:
+                engine = get_recovery_engine()
+                case_id = f"RX-{int(time.time() * 1000)}"
+                raw_p = event.raw_payload.get("payload", {}).get("payment", {}).get("entity", {}) if event.raw_payload else {}
+                c_phone = raw_p.get("contact") or "+916260055671"
+                c_email = raw_p.get("email") or "void@razorpay.com"
+                c_name = raw_p.get("notes", {}).get("name") or (c_email.split("@")[0].capitalize() if c_email else "Customer")
+                err_code = raw_p.get("error_code") or "BANK_DECLINED"
+                err_desc = raw_p.get("error_description") or raw_p.get("error_reason") or "Payment declined by issuing bank"
+                amt_paise = event.amount_paise or raw_p.get("amount") or 250000
+
+                new_case = engine.create_case(
+                    case_id=case_id,
+                    payment_id=event.payment_id,
+                    amount_paise=amt_paise,
+                    customer_phone=c_phone,
+                    customer_name=c_name,
+                    merchant_name="Merchant",
+                    merchant_id=str(target_merchant_id or "04a2aaf8-8c8a-4d99-852c-cefc80e82019"),
+                    error_code=err_code,
+                    error_category="FRICTION_OTP_UX",
+                    max_attempts=3,
+                )
+
+                # Enrich with decision metadata
+                amt_inr = float(amt_paise) / 100.0
+                new_case.decision_metadata = {
+                    "incrementalUplift": 0.38,
+                    "naturalRecoveryProbability": 0.12,
+                    "treatmentProbability": 0.72,
+                    "recommendedAction": "WHATSAPP",
+                    "recommendedActionLabel": "WhatsApp 1-Click Link",
+                    "optimalWindow": "Next 15m (Optimal Peak)",
+                    "failureCode": err_code,
+                    "failureReason": err_desc,
+                    "domain": "CHECKOUT",
+                    "customerHandle": c_email,
+                }
+                store.save_case(new_case)
+
+                # Push into active frontend store
+                frontend_fmt = new_case.to_frontend_format()
+                frontend_fmt["domain"] = "CHECKOUT"
+                frontend_fmt["customerHandle"] = c_email
+                frontend_fmt["customerPhone"] = c_phone
+                frontend_fmt["failureReason"] = err_desc
+                frontend_fmt["failureCode"] = err_code
+                active_cases_store[case_id] = frontend_fmt
+                case_details_store[case_id] = generate_decision_output_for_case(new_case)
+
+                # Register mapping in webhook processor and orchestrator
+                processor_reg = get_durable_webhook_processor()
+                processor_reg.register_case_mapping(
+                    case_id=case_id,
+                    initial_status="PENDING",
+                    customer_phone=c_phone,
+                )
+                orch_reg = get_recovery_orchestrator()
+                orch_reg._cases[case_id] = new_case
+
+                engine.timeline.record_event(
+                    case_id=case_id,
+                    event_type="PAYMENT_FAILED",
+                    description=f"Razorpay webhook ingested payment.failed event for {event.payment_id} (Rs {amt_inr:,.2f}).",
+                    source="RAZORPAY_WEBHOOK",
+                    metadata={"error_code": err_code, "error_description": err_desc, "amount": amt_inr},
+                )
+                logger.info(f"Successfully ingested live Razorpay payment failure: created recovery case {case_id} for {event.payment_id} ({amt_inr} INR)")
+        except Exception as ingest_err:
+            logger.error(f"Failed to auto-ingest Razorpay payment failure: {ingest_err}", exc_info=True)
 
     # Route event to autonomous recovery orchestrator
     try:

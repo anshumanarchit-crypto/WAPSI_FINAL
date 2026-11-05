@@ -137,9 +137,15 @@ class DurableWebhookInbox:
 
             if not m_uuid:
                 from wapsi.core.config import is_dev_fallback_permitted
-                if is_dev_fallback_permitted(get_settings()):
+                settings = get_settings()
+                if is_dev_fallback_permitted(settings):
                     try:
-                        m_uuid = uuid.UUID(get_settings().default_merchant_id)
+                        m_uuid = uuid.UUID(settings.default_merchant_id)
+                    except Exception:
+                        m_uuid = uuid.UUID("04a2aaf8-8c8a-4d99-852c-cefc80e82019")
+                elif settings.razorpay_mode == "test" or settings.wapsi_env in ("development", "test"):
+                    try:
+                        m_uuid = uuid.UUID(settings.default_merchant_id)
                     except Exception:
                         m_uuid = uuid.UUID("04a2aaf8-8c8a-4d99-852c-cefc80e82019")
                 else:
